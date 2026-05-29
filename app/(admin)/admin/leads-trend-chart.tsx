@@ -45,7 +45,7 @@ export function LeadsTrendChart({
               fontSize: 12,
             }}
             labelStyle={{ color: "#1e3a5f", fontWeight: 600 }}
-            formatter={(v: number) => [`${v} leadów`, ""]}
+            formatter={(v) => [`${v} leadów`, ""]}
           />
           <Area
             type="monotone"

@@ -1,4 +1,5 @@
 import NextAuth, { type DefaultSession } from "next-auth";
+import "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
