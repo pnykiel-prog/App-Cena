@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum TenantUserRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum TenantUserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum PlanTier {
+  TRIAL
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIAL
+}
+
+enum RoomCapacity {
+  SINGLE
+  DOUBLE
+  TRIPLE
+}
+
+enum AddonBillingUnit {
+  PER_MONTH
+  PER_DAY
+  PER_HOUR
+  PER_VISIT
+}
+
+enum MedicalModifierKind {
+  COGNITIVE
+  MEDICAL
+  BEHAVIORAL
+  MOBILITY
+}
+
+enum QuoteStatus {
+  DRAFT
+  NEW
+  CONTACTED
+  VISIT_SCHEDULED
+  WON
+  LOST
+  COMPLETED
+  CONVERTED_TO_VISIT
+  ARCHIVED
+}
+
+enum VisitStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationKind {
+  NEW_LEAD
+  NEW_VISIT_BOOKING
+  SUBSCRIPTION_RENEWAL
+  TRIAL_ENDING
+}
+
+// ─── Auth (NextAuth.js v5) ────────────────────────────────────────────────────
+// Wspólne tabele dla TenantUser i PlatformAdmin — userId odnosi się polimorficznie
+// (rozróżniane po `userType` w tokenie JWT). Sesja DB nie jest używana (JWT),
+// ale Account/VerificationToken zostawiamy dla potencjalnego OAuth/magic link.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  userType          String  // "tenant" | "admin"
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId, userType])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  userType     String
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Tenant (dom seniora) ─────────────────────────────────────────────────────
+
+model Tenant {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  legalName   String?
+  nip         String?
+  regon       String?
+  address     String?
+  postalCode  String?
+  city        String?
+  phone       String?
+  email       String?
+  website     String?
+
+  // Branding widgetu
+  logoUrl     String?
+  brandColor  String       @default("#1e3a5f")
+  accentColor String       @default("#C9A84C")
+  // CSS variables custom override (opcjonalnie raw JSON)
+  brandCss    Json?
+
+  // Polityka wyceny
+  showRangeWidth Float    @default(0.1)  // szerokość widełek (10% od estymaty)
+  currency       String   @default("PLN")
+  locale         String   @default("pl-PL")
+
+  // Wymagania formularza kontaktu w widgecie:
+  // email jest zawsze wymagany (gate dostępu do wyceny);
+  // telefon — manager decyduje (false = dobrowolny, true = wymagany).
+  requirePhoneOnLead Boolean @default(false)
+
+  status      TenantStatus @default(TRIAL)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  users           TenantUser[]
+  subscription    Subscription?
+  roomTypes       RoomType[]
+  careTiers       CareTier[]
+  medModifiers    MedicalModifier[]
+  addons          AddonService[]
+  discounts       ContractDiscount[]
+  quotes          Quote[]
+  visits          VisitBooking[]
+  notifications   NotificationSetting?
+}
+
+model Subscription {
+  id          String              @id @default(cuid())
+  tenantId    String              @unique
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan        PlanTier            @default(TRIAL)
+  status      SubscriptionStatus  @default(TRIAL)
+  trialEndsAt DateTime?
+  currentPeriodStart DateTime    @default(now())
+  currentPeriodEnd   DateTime?
+  monthlyPrice Float             @default(0)
+  cancelledAt  DateTime?
+  notes        String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+// ─── Tenant users (pracownicy DPS) ────────────────────────────────────────────
+
+model TenantUser {
+  id            String           @id @default(cuid())
+  tenantId      String
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email         String           @unique
+  name          String
+  password      String?          // bcrypt
+  emailVerified DateTime?
+  image         String?
+  role          TenantUserRole   @default(MANAGER)
+  status        TenantUserStatus @default(ACTIVE)
+  lastLoginAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([tenantId])
+}
+
+// ─── Platform admin (super-admin CareQuote) ───────────────────────────────────
+
+model PlatformAdmin {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String
+  password      String?
+  emailVerified DateTime?
+  image         String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// ─── Pricing catalog (per tenant) ─────────────────────────────────────────────
+
+model RoomType {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  capacity    RoomCapacity
+  label       String       // np. "Pokój 1-osobowy z balkonem"
+  description String?
+  basePrice   Float        // miesięczna cena bazowa pokoju (PLN)
+  available   Int          @default(0)
+  sortOrder   Int          @default(0)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+
+  quotes      Quote[]
+
+  @@index([tenantId, isActive])
+}
+
+// CareTier — schodkowa dopłata miesięczna w zależności od progu Barthela.
+// Próg Barthela liczymy jako maxScore włącznie: pacjent wpada w pierwszy tier
+// którego maxBarthel >= score (sortowane rosnąco po maxBarthel).
+model CareTier {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label        String   // np. "Pełna niesamodzielność (0–20)"
+  minBarthel   Int      // np. 0
+  maxBarthel   Int      // np. 20
+  monthlySurcharge Float
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, sortOrder])
+}
+
+// Modyfikatory poznawczo-medyczne — przełączane on/off lub liczbowe ilości
+// (np. liczba podań leków/dobę). Mnożnik = multiplier * value.
+model MedicalModifier {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        String              // np. "DEMENTIA", "INCONTINENCE"
+  label       String
+  kind        MedicalModifierKind
+  description String?
+  monthlySurcharge Float          // dopłata miesięczna jeśli przełącznik włączony
+  isToggle    Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  isActive    Boolean             @default(true)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
+// Usługi à la carte. Dla nie-miesięcznych — użytkownik podaje szacowaną
+// liczbę w miesiącu, serwer liczy ekwiwalent miesięczny.
+model AddonService {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code            String
+  label           String
+  description     String?
+  unit            AddonBillingUnit
+  unitPrice       Float            // cena za jednostkę (miesiąc/zabieg/godz/dobę)
+  defaultMonthly  Int?             // sugerowana liczba w miesiącu (UX hint)
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
+// Rabat za długość umowy — progi miesięczne, procentowy upust od sumy bazy+tier+addons
+model ContractDiscount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label         String   // np. "Umowa na 24 miesiące"
+  minMonths     Int      // próg minimalny włącznie
+  discountPct   Float    // 0..1 (np. 0.05 = 5%)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+
+  @@index([tenantId, minMonths])
+}
+
+// ─── Quote (lead) — wynik widgetu ─────────────────────────────────────────────
+
+model Quote {
+  id             String      @id @default(cuid())
+  tenantId       String
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Anonimowe identyfikatory — nie zbieramy danych osobowych domyślnie
+  shareToken     String      @unique @default(cuid())  // do /q/[token]
+  ipHash         String?     // opcjonalny hash do anti-abuse
+  referrer       String?
+  userAgent      String?
+
+  // Input
+  barthelScore   Int         // 0–100
+  barthelAnswers Json        // pełna mapa odpowiedzi
+  medModifiers   Json        // wybrane modyfikatory (code → value)
+  roomTypeId     String?
+  roomType       RoomType?   @relation(fields: [roomTypeId], references: [id])
+  addons         Json        // [{code, monthlyCountEstimate}]
+  contractMonths Int         @default(12)
+
+  // Snapshot wyceny — zamrożone wartości w momencie liczenia
+  basePrice       Float
+  careTierLabel   String?
+  careSurcharge   Float       @default(0)
+  modifiersTotal  Float       @default(0)
+  addonsTotal     Float       @default(0)
+  discountPct     Float       @default(0)
+  estimateMin     Float       // dolna granica widełek
+  estimateMid     Float       // środek (estymata)
+  estimateMax     Float       // górna granica widełek
+  currency        String      @default("PLN")
+
+  status         QuoteStatus  @default(COMPLETED)
+
+  // Lead — dane kontaktowe (zbieramy WYŁĄCZNIE po jawnej zgodzie RODO w ContactForm)
+  contactName      String?
+  contactPhone     String?
+  contactEmail     String?
+  consentRodo      Boolean    @default(false)
+  consentMarketing Boolean    @default(false)
+
+  // Dane przyszłego mieszkańca (opcjonalne, minimalizacja)
+  seniorFirstName String?
+  seniorAge       Int?
+
+  notes          String?
+  pdfPath        String?
+  pdfSentAt      DateTime?
+
+  createdAt      DateTime    @default(now())
+
+  visit          VisitBooking?
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+// ─── Visit booking — konwersja leada na zaproszenie do DPS ────────────────────
+
+model VisitBooking {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteId     String      @unique
+  quote       Quote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  contactName String
+  contactPhone String
+  contactEmail String?
+  preferredAt  DateTime?
+  notes        String?
+  status       VisitStatus @default(REQUESTED)
+  confirmedAt  DateTime?
+  confirmedById String?
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tenantId, status, createdAt])
+}
+
+// ─── Notification settings (per tenant) ───────────────────────────────────────
+
+model NotificationSetting {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  emailNewLead    Boolean  @default(true)
+  emailNewVisit   Boolean  @default(true)
+  recipientEmails String[] @default([])
+  updatedAt       DateTime @updatedAt
+}
