@@ -6,9 +6,9 @@
 // Użycie:
 //   node scripts/apply-ddl.mjs <ścieżka_do_pliku.sql>
 //
-// DDL wygeneruj wcześniej offline:
+// DDL wygeneruj wcześniej offline (Prisma 7):
 //   npx prisma migrate diff --from-empty \
-//     --to-schema-datamodel prisma/schema.prisma --script > schema.sql
+//     --to-schema prisma/schema.prisma --script > schema.sql
 //
 // Wymaga w .env.local: DIRECT_URL wskazującego na bazę docelową "carequote".
 
