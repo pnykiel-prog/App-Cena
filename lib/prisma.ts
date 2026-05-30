@@ -10,10 +10,24 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+// Leniwa inicjalizacja: klient powstaje dopiero przy pierwszym użyciu (zapytaniu),
+// a nie przy imporcie modułu. Dzięki temu `next build` może prerenderować strony
+// statyczne (np. "/") bez ustawionego DATABASE_URL — zmienna jest wymagana dopiero
+// w runtime, gdy faktycznie odpytujemy bazę.
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getPrisma(), prop, receiver);
+  },
+});
 
 export default prisma;
+
