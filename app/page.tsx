@@ -8,9 +8,14 @@ export default function HomePage() {
           <div className="h-10 w-10 rounded-lg bg-[var(--primary)] flex items-center justify-center">
             <span className="text-[var(--accent)] font-bold text-lg">C</span>
           </div>
-          <span className="text-xl font-semibold tracking-tight text-[var(--primary)]">
-            CareQuote
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xl font-semibold tracking-tight text-[var(--primary)]">
+              CareQuote
+            </span>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              Europejskie Centrum Seniora · Bonam Curam
+            </span>
+          </div>
         </div>
 
         <h1 className="mt-12 text-5xl font-bold tracking-tight text-[var(--primary)]">
