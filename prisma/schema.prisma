@@ -373,6 +373,10 @@ model Quote {
   pdfPath        String?
   pdfSentAt      DateTime?
 
+  // Limit wycen jest miękki: po przekroczeniu kwoty planu lead jest nadal
+  // zapisywany (chronimy konwersję), ale oznaczony flagą do raportu/upsellu.
+  overLimit      Boolean     @default(false)
+
   createdAt      DateTime    @default(now())
 
   visit          VisitBooking?

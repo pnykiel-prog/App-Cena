@@ -9,6 +9,11 @@ import {
   type CareDatum,
   type FunnelDatum,
 } from "./dashboard-charts";
+import { getPlanUsage } from "@/lib/plan-usage";
+import { PLAN_LABEL } from "@/lib/plan-limits";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { TriangleAlert } from "lucide-react";
 
 export const metadata = { title: "Dashboard" };
 
@@ -85,6 +90,9 @@ export default async function DashboardPage() {
     }))
     .sort((a, b) => b.value - a.value);
 
+  const usage = await getPlanUsage(tenantId);
+  const quoteWarn = usage.quotePct !== null && usage.quotePct >= 80;
+
   return (
     <div className="space-y-8">
       <div>
@@ -96,11 +104,45 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KPI title="Leady (łącznie)" value={quotesCount.toString()} />
         <KPI title="Leady (ostatnie 7 dni)" value={last7Quotes.toString()} />
         <KPI title="Umówione wizyty" value={visitsCount.toString()} />
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
+              Twój plan
+            </p>
+            <p className="mt-2 text-lg font-semibold text-[var(--primary)]">
+              {PLAN_LABEL[usage.plan]}
+            </p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {usage.quoteUsed} /{" "}
+              {usage.quoteLimit === null ? "∞" : usage.quoteLimit} wycen w okresie
+            </p>
+            <Link
+              href="/plan"
+              className="mt-1 inline-block text-xs text-[var(--accent)] hover:underline"
+            >
+              Szczegóły planu →
+            </Link>
+          </CardContent>
+        </Card>
       </div>
+
+      {quoteWarn && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-amber-800">
+            <TriangleAlert className="h-4 w-4 shrink-0" />
+            Wykorzystano {usage.quotePct}% limitu wycen w tym okresie. Po
+            przekroczeniu leady nadal będą zapisywane, ale warto rozważyć wyższy
+            plan.
+          </div>
+          <Button asChild variant="accent" size="sm">
+            <Link href="/plan">Zobacz plan</Link>
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>

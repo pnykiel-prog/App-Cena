@@ -7,6 +7,7 @@ import {
   Users,
   CalendarClock,
   Settings,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const NAV = [
   { href: "/leady", label: "Leady", icon: Users },
   { href: "/wizyty", label: "Wizyty", icon: CalendarClock },
   { href: "/konfiguracja", label: "Konfiguracja", icon: Settings },
+  { href: "/plan", label: "Plan", icon: CreditCard },
 ];
 
 export function PanelSidebar({ tenantName }: { tenantName: string }) {

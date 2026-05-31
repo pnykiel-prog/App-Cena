@@ -5,6 +5,7 @@ import { getPublicTenantBySlug, getTenantCatalog } from "@/lib/tenant";
 import { computePricing, type PricingInput } from "@/lib/pricing";
 import { scoreBarthel, BARTHEL_ITEMS, type BarthelAnswers } from "@/lib/barthel";
 import { rateLimit, clientIdentifier } from "@/lib/rate-limit";
+import { isWithinLimit } from "@/lib/plan-limits";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -145,6 +146,19 @@ export async function POST(
   // Zapisz Quote — anonimowo (dane kontaktowe tylko jeśli zgody RODO udzielono).
   const contact = input.contact && input.contact.consentRodo ? input.contact : null;
 
+  // Miękki limit wycen: liczymy bieżące wykorzystanie względem limitu planu.
+  // Po przekroczeniu wycena NADAL jest zapisywana (chronimy konwersję), tylko
+  // oznaczamy flagą overLimit i podbijamy licznik okresu na subskrypcji.
+  const subscription = await prisma.subscription.findUnique({
+    where: { tenantId: tenant.id },
+    select: { id: true, plan: true, limitOverrides: true, quotesThisPeriod: true },
+  });
+  const overLimit = !isWithinLimit(
+    subscription,
+    "monthlyQuoteLimit",
+    subscription?.quotesThisPeriod ?? 0,
+  );
+
   const quote = await prisma.quote.create({
     data: {
       tenantId: tenant.id,
@@ -165,6 +179,7 @@ export async function POST(
       estimateMax: result.estimateMax,
       currency: result.currency,
       status: contact ? "NEW" : "DRAFT",
+      overLimit,
       contactName: contact?.name ?? null,
       contactPhone: contact?.phone ?? null,
       contactEmail: contact?.email ?? null,
@@ -184,6 +199,14 @@ export async function POST(
       currency: true,
     },
   });
+
+  // Podbij licznik wycen w okresie (jeśli subskrypcja istnieje).
+  if (subscription) {
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { quotesThisPeriod: { increment: 1 } },
+    });
+  }
 
   return NextResponse.json(
     {

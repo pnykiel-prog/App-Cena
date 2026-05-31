@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
+import { isWithinLimit } from "@/lib/plan-limits";
 
 const schema = z.object({
   capacity: z.enum(["SINGLE", "DOUBLE", "TRIPLE"]),
@@ -49,6 +50,19 @@ export async function upsertRoomType(
       },
     });
   } else {
+    // Limit planu: liczba typów pokoi (egzekwowane przy dodawaniu nowego).
+    const [count, subscription] = await Promise.all([
+      prisma.roomType.count({ where: { tenantId } }),
+      prisma.subscription.findUnique({
+        where: { tenantId },
+        select: { plan: true, limitOverrides: true },
+      }),
+    ]);
+    if (!isWithinLimit(subscription, "maxRoomTypes", count)) {
+      return actionError(
+        "Osiągnięto limit typów pokoi w Twoim planie. Przejdź na wyższy plan, aby dodać więcej.",
+      );
+    }
     await prisma.roomType.create({
       data: {
         tenantId,

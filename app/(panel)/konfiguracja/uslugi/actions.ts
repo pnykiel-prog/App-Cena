@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
+import { isWithinLimit } from "@/lib/plan-limits";
 
 const schema = z.object({
   code: z
@@ -67,6 +68,19 @@ export async function upsertAddon(
     if (!existing) return actionError("Usługa nie istnieje");
     await prisma.addonService.update({ where: { id }, data: payload });
   } else {
+    // Limit planu: liczba usług dodatkowych (egzekwowane przy dodawaniu nowej).
+    const [count, subscription] = await Promise.all([
+      prisma.addonService.count({ where: { tenantId } }),
+      prisma.subscription.findUnique({
+        where: { tenantId },
+        select: { plan: true, limitOverrides: true },
+      }),
+    ]);
+    if (!isWithinLimit(subscription, "maxAddonServices", count)) {
+      return actionError(
+        "Osiągnięto limit usług dodatkowych w Twoim planie. Przejdź na wyższy plan, aby dodać więcej.",
+      );
+    }
     await prisma.addonService.create({ data: { ...payload, tenantId } });
   }
   revalidatePath("/konfiguracja/uslugi");

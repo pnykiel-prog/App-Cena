@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
+import { canFeature } from "@/lib/plan-limits";
 
 const schema = z.object({
   emailNewLead: z.boolean(),
@@ -26,6 +27,19 @@ export async function updateNotifications(
         parsed.error.issues.map((i) => [i.path.join("."), i.message]),
       ),
     );
+  }
+
+  // Wielu odbiorców powiadomień e-mail to funkcja Pro+.
+  if (parsed.data.recipientEmails.length > 1) {
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: true, limitOverrides: true },
+    });
+    if (!canFeature(subscription, "emailMultipleRecipients")) {
+      return actionError(
+        "Wielu odbiorców powiadomień jest dostępne w planie Pro i wyższych. Pozostaw jeden adres lub przejdź na wyższy plan.",
+      );
+    }
   }
 
   await prisma.notificationSetting.upsert({
