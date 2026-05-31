@@ -5,7 +5,8 @@ import { getPublicTenantBySlug, getTenantCatalog } from "@/lib/tenant";
 import { computePricing, type PricingInput } from "@/lib/pricing";
 import { scoreBarthel, BARTHEL_ITEMS, type BarthelAnswers } from "@/lib/barthel";
 import { rateLimit, clientIdentifier } from "@/lib/rate-limit";
-import { isWithinLimit } from "@/lib/plan-limits";
+import { isWithinLimit, canFeature } from "@/lib/plan-limits";
+import { fireLeadWebhooks } from "@/lib/webhook";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -205,6 +206,24 @@ export async function POST(
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: { quotesThisPeriod: { increment: 1 } },
+    });
+  }
+
+  // Webhook po leadzie (Enterprise). Bez PII mieszkańca w payloadzie.
+  if (canFeature(subscription, "webhookOnLead")) {
+    await fireLeadWebhooks(tenant.id, {
+      event: "lead.created",
+      quoteId: quote.id,
+      shareToken: quote.shareToken,
+      tenantSlug: tenant.slug,
+      barthelScore,
+      estimateMin: quote.estimateMin,
+      estimateMid: quote.estimateMid,
+      estimateMax: quote.estimateMax,
+      currency: quote.currency,
+      hasContact: Boolean(contact),
+      overLimit,
+      createdAt: new Date().toISOString(),
     });
   }
 

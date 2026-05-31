@@ -10,6 +10,7 @@ const SECTIONS = [
   { href: "/konfiguracja/rabaty", label: "Rabaty" },
   { href: "/konfiguracja/branding", label: "Branding" },
   { href: "/konfiguracja/powiadomienia", label: "Powiadomienia" },
+  { href: "/konfiguracja/webhooki", label: "Webhooki" },
   { href: "/konfiguracja/osadzenie", label: "Osadzenie widgetu" },
 ];
 

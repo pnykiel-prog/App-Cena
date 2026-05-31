@@ -179,6 +179,7 @@ model Tenant {
   quotes          Quote[]
   visits          VisitBooking[]
   notifications   NotificationSetting?
+  webhooks        WebhookEndpoint[]
 }
 
 model Subscription {
@@ -458,5 +459,26 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([createdAt])
+}
+
+// ─── Webhooki (Enterprise) ────────────────────────────────────────────────────
+// Po utworzeniu leada wysyłamy POST na zarejestrowane endpointy z podpisem
+// HMAC-SHA256 (nagłówek X-CareQuote-Signature). Sekret znany tylko tenantowi
+// i naszemu serwerowi. Payload domyślnie BEZ danych osobowych mieszkańca.
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  url         String
+  secret      String   // do podpisu HMAC-SHA256
+  isActive    Boolean  @default(true)
+  description String?
+  lastStatus  Int?     // ostatni kod HTTP odpowiedzi (diagnostyka)
+  lastFiredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, isActive])
 }
 
