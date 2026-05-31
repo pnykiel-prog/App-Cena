@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Globe } from "lucide-react";
 import { WidgetWizard } from "./widget-wizard";
 import { LangProvider, useT, langFromLocale, type Lang } from "./i18n";
 import type { WidgetConfig } from "./types";
@@ -81,19 +82,22 @@ function Header({
 
 function LangToggle({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void }) {
   return (
-    <div className="inline-flex rounded-md border border-[var(--border)] overflow-hidden text-xs">
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-1.5 py-1 shadow-sm">
+      <Globe className="h-4 w-4 text-[var(--brand-accent)]" aria-hidden="true" />
+      <span className="sr-only">Wybór języka</span>
       {(["pl", "en"] as Lang[]).map((l) => (
         <button
           key={l}
           type="button"
           onClick={() => onLang(l)}
           className={
-            "px-2 py-1 font-medium uppercase transition-colors " +
+            "rounded-full px-2 py-0.5 text-xs font-semibold uppercase transition-colors " +
             (lang === l
               ? "bg-[var(--brand)] text-white"
               : "text-[var(--muted-foreground)] hover:bg-[var(--secondary)]")
           }
           aria-pressed={lang === l}
+          aria-label={l === "pl" ? "Polski" : "English"}
         >
           {l}
         </button>
