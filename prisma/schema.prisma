@@ -180,6 +180,7 @@ model Tenant {
   visits          VisitBooking[]
   notifications   NotificationSetting?
   webhooks        WebhookEndpoint[]
+  apiKeys         ApiKey[]
 }
 
 model Subscription {
@@ -478,6 +479,25 @@ model WebhookEndpoint {
   lastFiredAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+}
+
+// ─── Klucze API (Enterprise) ──────────────────────────────────────────────────
+// REST API uwierzytelniane nagłówkiem Authorization: Bearer cq_...
+// Przechowujemy tylko SHA-256 klucza (keyHash, unikalny → szybki lookup O(1)) +
+// prefix do wyświetlenia. Pełny klucz pokazujemy właścicielowi tylko raz.
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  keyHash    String    @unique // sha256(hex) pełnego klucza
+  prefix     String    // np. "cq_ab12cd34" do identyfikacji w UI
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([tenantId, isActive])
 }
