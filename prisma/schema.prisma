@@ -182,6 +182,7 @@ model Tenant {
   webhooks        WebhookEndpoint[]
   apiKeys         ApiKey[]
   locations       Location[]
+  calendar        CalendarIntegration?
 }
 
 model Subscription {
@@ -536,5 +537,31 @@ model Location {
   quotes      Quote[]
 
   @@index([tenantId, isActive])
+}
+
+// ─── Integracja kalendarza (Pro+) ─────────────────────────────────────────────
+// Subskrybowalny feed iCal (.ics) z wizytami tenanta — manager wkleja URL do
+// Google Calendar / Outlook / Apple Calendar (kalendarz tylko-do-odczytu,
+// auto-synchronizacja, bez OAuth). Feed chroniony losowym tokenem w URL.
+// Google → Pro+, Outlook/iCal → Enterprise (egzekwowane w server-action).
+
+enum CalendarProvider {
+  GOOGLE
+  OUTLOOK
+  ICAL
+}
+
+model CalendarIntegration {
+  id          String           @id @default(cuid())
+  tenantId    String           @unique
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider    CalendarProvider @default(ICAL)
+  feedToken   String           @unique // losowy token w URL feedu (.ics)
+  isActive    Boolean          @default(true)
+  lastSyncAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([feedToken])
 }
 

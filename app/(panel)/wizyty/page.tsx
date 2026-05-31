@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { canFeature } from "@/lib/plan-limits";
+import { CalendarCard } from "./calendar-card";
 
 export const metadata = { title: "Wizyty" };
 
@@ -25,11 +27,28 @@ export default async function WizytyPage() {
   const session = await auth();
   const tenantId = session!.user.tenantId!;
 
-  const visits = await prisma.visitBooking.findMany({
-    where: { tenantId },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [visits, subscription, integration] = await Promise.all([
+    prisma.visitBooking.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: true, limitOverrides: true },
+    }),
+    prisma.calendarIntegration.findUnique({
+      where: { tenantId },
+      select: { feedToken: true, isActive: true },
+    }),
+  ]);
+
+  const canCalendar = canFeature(subscription, "calendarGoogle");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const feedUrl =
+    integration && integration.isActive
+      ? `${appUrl}/api/calendar/${integration.feedToken}`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -41,6 +60,12 @@ export default async function WizytyPage() {
           Zgłoszenia rodzin chcących odwiedzić placówkę po otrzymaniu wyceny.
         </p>
       </div>
+
+      <CalendarCard
+        canUse={canCalendar}
+        feedUrl={feedUrl}
+        isActive={Boolean(integration?.isActive)}
+      />
 
       <Card>
         <CardHeader>
