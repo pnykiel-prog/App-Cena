@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublicTenantBySlug, getTenantCatalog, brandingCss } from "@/lib/tenant";
+import { resolveWidgetSlug, getTenantCatalog, brandingCss } from "@/lib/tenant";
 import { BARTHEL_ITEMS } from "@/lib/barthel";
 import { prisma } from "@/lib/prisma";
 import { canFeature } from "@/lib/plan-limits";
@@ -14,11 +14,12 @@ export default async function WidgetPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const tenant = await getPublicTenantBySlug(slug);
-  if (!tenant) notFound();
+  const resolved = await resolveWidgetSlug(slug);
+  if (!resolved) notFound();
+  const { tenant, locationId } = resolved;
 
   const [catalog, subscription] = await Promise.all([
-    getTenantCatalog(tenant.id),
+    getTenantCatalog(tenant.id, locationId),
     prisma.subscription.findUnique({
       where: { tenantId: tenant.id },
       select: { plan: true, limitOverrides: true },
@@ -29,7 +30,9 @@ export default async function WidgetPage({
   const config: WidgetConfig = {
     tenant: {
       id: tenant.id,
-      slug: tenant.slug,
+      // Slug używany przez widget do wywołań API = slug z URL (tenanta LUB
+      // lokalizacji), aby API rozwiązało ten sam kontekst (i przypisało locationId).
+      slug,
       name: tenant.name,
       city: tenant.city,
       logoUrl: tenant.logoUrl,

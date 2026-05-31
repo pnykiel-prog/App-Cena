@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getPublicTenantBySlug, getTenantCatalog } from "@/lib/tenant";
+import { resolveWidgetSlug, getTenantCatalog } from "@/lib/tenant";
 import { computePricing, type PricingInput } from "@/lib/pricing";
 import { scoreBarthel, BARTHEL_ITEMS, type BarthelAnswers } from "@/lib/barthel";
 import { rateLimit, clientIdentifier } from "@/lib/rate-limit";
@@ -74,13 +74,14 @@ export async function POST(
     );
   }
 
-  const tenant = await getPublicTenantBySlug(slug);
-  if (!tenant) {
+  const resolved = await resolveWidgetSlug(slug);
+  if (!resolved) {
     return NextResponse.json(
       { success: false, error: "Tenant not found" },
       { status: 404, headers: CORS_HEADERS },
     );
   }
+  const { tenant, locationId } = resolved;
 
   let body: unknown;
   try {
@@ -110,7 +111,7 @@ export async function POST(
   }
   const barthelScore = scoreBarthel(safeAnswers);
 
-  const catalog = await getTenantCatalog(tenant.id);
+  const catalog = await getTenantCatalog(tenant.id, locationId);
 
   const pricingInput: PricingInput = {
     roomTypeId: input.roomTypeId,
@@ -181,6 +182,7 @@ export async function POST(
       currency: result.currency,
       status: contact ? "NEW" : "DRAFT",
       overLimit,
+      locationId,
       contactName: contact?.name ?? null,
       contactPhone: contact?.phone ?? null,
       contactEmail: contact?.email ?? null,

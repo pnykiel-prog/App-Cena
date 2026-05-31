@@ -9,6 +9,7 @@ import {
   Settings,
   CreditCard,
   ScrollText,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,15 +24,23 @@ const NAV = [
 export function PanelSidebar({
   tenantName,
   showAudit = false,
+  showLocations = false,
 }: {
   tenantName: string;
   showAudit?: boolean;
+  showLocations?: boolean;
 }) {
   const pathname = usePathname();
-  // Link do dziennika zdarzeń tylko dla planów z funkcją auditLog (Pro+).
-  const nav = showAudit
-    ? [...NAV, { href: "/audit", label: "Dziennik zdarzeń", icon: ScrollText }]
-    : NAV;
+  // Linki warunkowe wg planu: lokalizacje (Enterprise), dziennik zdarzeń (Pro+).
+  const nav = [
+    ...NAV,
+    ...(showLocations
+      ? [{ href: "/lokalizacje", label: "Lokalizacje", icon: MapPin }]
+      : []),
+    ...(showAudit
+      ? [{ href: "/audit", label: "Dziennik zdarzeń", icon: ScrollText }]
+      : []),
+  ];
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] min-h-screen">

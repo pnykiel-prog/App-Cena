@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPublicTenantBySlug, getTenantCatalog } from "@/lib/tenant";
+import { resolveWidgetSlug, getTenantCatalog } from "@/lib/tenant";
 import { BARTHEL_ITEMS } from "@/lib/barthel";
 
 const CORS_HEADERS = {
@@ -17,14 +17,15 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const tenant = await getPublicTenantBySlug(slug);
-  if (!tenant) {
+  const resolved = await resolveWidgetSlug(slug);
+  if (!resolved) {
     return NextResponse.json(
       { success: false, error: "Tenant not found" },
       { status: 404, headers: CORS_HEADERS },
     );
   }
-  const catalog = await getTenantCatalog(tenant.id);
+  const { tenant, locationId } = resolved;
+  const catalog = await getTenantCatalog(tenant.id, locationId);
 
   return NextResponse.json(
     {

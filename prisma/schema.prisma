@@ -181,6 +181,7 @@ model Tenant {
   notifications   NotificationSetting?
   webhooks        WebhookEndpoint[]
   apiKeys         ApiKey[]
+  locations       Location[]
 }
 
 model Subscription {
@@ -244,6 +245,10 @@ model RoomType {
   id          String       @id @default(cuid())
   tenantId    String
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Pokoje należą do lokalizacji (budynku). null = pokój „domyślnej" placówki
+  // bez lokalizacji (wstecznie kompatybilne z trybem jednolokalizacyjnym).
+  locationId  String?
+  location    Location?    @relation(fields: [locationId], references: [id], onDelete: Cascade)
   capacity    RoomCapacity
   label       String       // np. "Pokój 1-osobowy z balkonem"
   description String?
@@ -256,6 +261,7 @@ model RoomType {
   quotes      Quote[]
 
   @@index([tenantId, isActive])
+  @@index([locationId, isActive])
 }
 
 // CareTier — schodkowa dopłata miesięczna w zależności od progu Barthela.
@@ -383,12 +389,17 @@ model Quote {
   // zapisywany (chronimy konwersję), ale oznaczony flagą do raportu/upsellu.
   overLimit      Boolean     @default(false)
 
+  // Lokalizacja (budynek), z której pochodzi lead. null = tryb jednolokalizacyjny.
+  locationId     String?
+  location       Location?   @relation(fields: [locationId], references: [id])
+
   createdAt      DateTime    @default(now())
 
   visit          VisitBooking?
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
+  @@index([locationId])
 }
 
 // ─── Visit booking — konwersja leada na zaproszenie do DPS ────────────────────
@@ -498,6 +509,31 @@ model ApiKey {
   isActive   Boolean   @default(true)
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
+
+  @@index([tenantId, isActive])
+}
+
+// ─── Lokalizacje (Enterprise, multi-location) ─────────────────────────────────
+// Budynek pod tenantem. Ma WŁASNE pokoje (RoomType.locationId) i WŁASNE leady
+// (Quote.locationId) → osobna ankieta/wycena per budynek. Współdzieli z tenantem
+// progi Barthela, modyfikatory, usługi i rabaty. Slug globalnie unikalny i nie
+// może kolidować ze slugiem tenanta (sprawdzane w server-action przy tworzeniu).
+
+model Location {
+  id          String     @id @default(cuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug        String     @unique // → widget /w/{slug}
+  name        String
+  city        String?
+  address     String?
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  rooms       RoomType[]
+  quotes      Quote[]
 
   @@index([tenantId, isActive])
 }

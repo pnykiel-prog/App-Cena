@@ -22,12 +22,14 @@ export default async function PanelLayout({
       })
     : null;
   const showAudit = canFeature(subscription, "auditLog");
+  const showLocations = canFeature(subscription, "multiLocation");
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
       <PanelSidebar
         tenantName={session.user.tenantName ?? "Dom seniora"}
         showAudit={showAudit}
+        showLocations={showLocations}
       />
       <div className="flex flex-1 flex-col">
         <PanelTopbar

@@ -16,7 +16,22 @@ const schema = z.object({
   available: z.number().int().min(0).max(999),
   sortOrder: z.number().int().min(0).max(999),
   isActive: z.boolean(),
+  // Lokalizacja pokoju (Enterprise). null = tryb jednolokalizacyjny.
+  locationId: z.string().nullish(),
 });
+
+// Weryfikuje, że lokalizacja należy do tenanta (lub jest pusta).
+async function resolveLocationId(
+  tenantId: string,
+  locationId: string | null | undefined,
+): Promise<string | null> {
+  if (!locationId) return null;
+  const loc = await prisma.location.findFirst({
+    where: { id: locationId, tenantId },
+    select: { id: true },
+  });
+  return loc?.id ?? null;
+}
 
 export async function upsertRoomType(
   id: string | null,
@@ -32,6 +47,7 @@ export async function upsertRoomType(
       ),
     );
   }
+  const locationId = await resolveLocationId(tenantId, parsed.data.locationId);
   if (id) {
     const existing = await prisma.roomType.findFirst({
       where: { id, tenantId },
@@ -48,6 +64,7 @@ export async function upsertRoomType(
         available: parsed.data.available,
         sortOrder: parsed.data.sortOrder,
         isActive: parsed.data.isActive,
+        locationId,
       },
     });
   } else {
@@ -74,6 +91,7 @@ export async function upsertRoomType(
         available: parsed.data.available,
         sortOrder: parsed.data.sortOrder,
         isActive: parsed.data.isActive,
+        locationId,
       },
     });
   }

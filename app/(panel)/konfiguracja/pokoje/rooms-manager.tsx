@@ -66,7 +66,13 @@ const EMPTY: FormState = {
   isActive: true,
 };
 
-export function RoomsManager({ initialRooms }: { initialRooms: Room[] }) {
+export function RoomsManager({
+  initialRooms,
+  locationId = null,
+}: {
+  initialRooms: Room[];
+  locationId?: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Room | null>(null);
@@ -103,6 +109,7 @@ export function RoomsManager({ initialRooms }: { initialRooms: Room[] }) {
         available: Number(form.available),
         sortOrder: Number(form.sortOrder),
         isActive: form.isActive,
+        locationId,
       });
       if (!res.success) {
         toast.error(res.error);
