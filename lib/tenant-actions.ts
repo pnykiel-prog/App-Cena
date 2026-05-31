@@ -11,6 +11,7 @@ export async function requireTenantSession() {
     tenantId: session.user.tenantId,
     tenantSlug: session.user.tenantSlug ?? "",
     userId: session.user.id,
+    email: session.user.email ?? "",
     role: session.user.role,
   };
 }

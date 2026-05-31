@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
 import { canFeature } from "@/lib/plan-limits";
+import { logAction, tenantActor } from "@/lib/audit";
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Format #RRGGBB");
 
@@ -32,7 +33,7 @@ const schema = z.object({
 });
 
 export async function updateBranding(data: unknown): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     return actionError(
@@ -77,6 +78,14 @@ export async function updateBranding(data: unknown): Promise<ActionResult> {
       requirePhoneOnLead: parsed.data.requirePhoneOnLead,
       hideBranding,
     },
+  });
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: "UPDATE",
+    entity: "Tenant",
+    entityId: tenantId,
+    summary: "Zaktualizowano branding placówki",
   });
   revalidatePath("/konfiguracja/branding");
   revalidatePath("/konfiguracja");

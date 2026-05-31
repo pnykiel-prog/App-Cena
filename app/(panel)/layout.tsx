@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { canFeature } from "@/lib/plan-limits";
 import { PanelSidebar } from "@/components/panel/sidebar";
 import { PanelTopbar } from "@/components/panel/topbar";
 
@@ -13,9 +15,20 @@ export default async function PanelLayout({
     redirect("/logowanie");
   }
 
+  const subscription = session.user.tenantId
+    ? await prisma.subscription.findUnique({
+        where: { tenantId: session.user.tenantId },
+        select: { plan: true, limitOverrides: true },
+      })
+    : null;
+  const showAudit = canFeature(subscription, "auditLog");
+
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
-      <PanelSidebar tenantName={session.user.tenantName ?? "Dom seniora"} />
+      <PanelSidebar
+        tenantName={session.user.tenantName ?? "Dom seniora"}
+        showAudit={showAudit}
+      />
       <div className="flex flex-1 flex-col">
         <PanelTopbar
           userName={session.user.name ?? "Użytkownik"}

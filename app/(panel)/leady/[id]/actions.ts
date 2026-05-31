@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
+import { logAction, tenantActor } from "@/lib/audit";
 
 const statusEnum = z.enum([
   "DRAFT",
@@ -20,7 +21,7 @@ export async function updateLeadStatus(
   id: string,
   status: string,
 ): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const parsed = statusEnum.safeParse(status);
   if (!parsed.success) return actionError("Nieprawidłowy status");
   const existing = await prisma.quote.findFirst({
@@ -31,6 +32,14 @@ export async function updateLeadStatus(
   await prisma.quote.update({
     where: { id },
     data: { status: parsed.data },
+  });
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: "STATUS_CHANGE",
+    entity: "Quote",
+    entityId: id,
+    summary: `Zmieniono status leada na ${parsed.data}`,
   });
   revalidatePath(`/leady/${id}`);
   revalidatePath("/leady");

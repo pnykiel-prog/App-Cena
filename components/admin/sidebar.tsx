@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, CreditCard, Package } from "lucide-react";
+import { LayoutDashboard, Building2, CreditCard, Package, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/tenanci", label: "Tenanci", icon: Building2 },
   { href: "/admin/abonamenty", label: "Abonamenty", icon: CreditCard },
   { href: "/admin/plany", label: "Plany", icon: Package },
+  { href: "/admin/audit", label: "Audit log", icon: ScrollText },
 ];
 
 export function AdminSidebar() {

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
 import { canFeature } from "@/lib/plan-limits";
+import { logAction, tenantActor } from "@/lib/audit";
 
 const schema = z.object({
   emailNewLead: z.boolean(),
@@ -18,7 +19,7 @@ const schema = z.object({
 export async function updateNotifications(
   data: unknown,
 ): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     return actionError(
@@ -55,6 +56,13 @@ export async function updateNotifications(
       emailNewVisit: parsed.data.emailNewVisit,
       recipientEmails: parsed.data.recipientEmails,
     },
+  });
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: "UPDATE",
+    entity: "NotificationSetting",
+    summary: "Zaktualizowano ustawienia powiadomień",
   });
   revalidatePath("/konfiguracja/powiadomienia");
   return actionOk();

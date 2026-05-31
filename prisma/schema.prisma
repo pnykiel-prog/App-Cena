@@ -424,3 +424,39 @@ model NotificationSetting {
   recipientEmails String[] @default([])
   updatedAt       DateTime @updatedAt
 }
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+// Metadane akcji (kto/co/kiedy) — BEZ treści leadów (super-admin to procesor
+// RODO). tenantId null = akcja platformowa (super-admin poza kontekstem tenanta).
+// Aktor polimorficzny: actorType + actorId (TenantUser lub PlatformAdmin).
+
+enum AuditActorType {
+  TENANT_USER
+  PLATFORM_ADMIN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  TOGGLE
+  EXPORT
+  STATUS_CHANGE
+}
+
+model AuditLog {
+  id         String         @id @default(cuid())
+  tenantId   String?        // null = akcja na poziomie platformy
+  actorType  AuditActorType
+  actorId    String
+  actorEmail String         // zamrożony e-mail aktora (czytelność po usunięciu konta)
+  action     AuditAction
+  entity     String         // np. "RoomType", "Subscription", "Tenant"
+  entityId   String?        // id obiektu, którego dotyczy akcja
+  summary    String?        // krótki opis czytelny dla człowieka (bez danych osobowych)
+  createdAt  DateTime       @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+}
+

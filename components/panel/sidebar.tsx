@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Settings,
   CreditCard,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +20,18 @@ const NAV = [
   { href: "/plan", label: "Plan", icon: CreditCard },
 ];
 
-export function PanelSidebar({ tenantName }: { tenantName: string }) {
+export function PanelSidebar({
+  tenantName,
+  showAudit = false,
+}: {
+  tenantName: string;
+  showAudit?: boolean;
+}) {
   const pathname = usePathname();
+  // Link do dziennika zdarzeń tylko dla planów z funkcją auditLog (Pro+).
+  const nav = showAudit
+    ? [...NAV, { href: "/audit", label: "Dziennik zdarzeń", icon: ScrollText }]
+    : NAV;
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] min-h-screen">
@@ -39,7 +50,7 @@ export function PanelSidebar({ tenantName }: { tenantName: string }) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const Icon = item.icon;
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);

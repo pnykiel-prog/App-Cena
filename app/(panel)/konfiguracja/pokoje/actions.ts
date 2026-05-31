@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
 import { isWithinLimit } from "@/lib/plan-limits";
+import { logAction, tenantActor } from "@/lib/audit";
 
 const schema = z.object({
   capacity: z.enum(["SINGLE", "DOUBLE", "TRIPLE"]),
@@ -21,7 +22,7 @@ export async function upsertRoomType(
   id: string | null,
   data: unknown,
 ): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     return actionError(
@@ -76,13 +77,21 @@ export async function upsertRoomType(
       },
     });
   }
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: id ? "UPDATE" : "CREATE",
+    entity: "RoomType",
+    entityId: id ?? undefined,
+    summary: `${id ? "Zaktualizowano" : "Dodano"} pokój „${parsed.data.label}”`,
+  });
   revalidatePath("/konfiguracja/pokoje");
   revalidatePath("/konfiguracja");
   return actionOk();
 }
 
 export async function deleteRoomType(id: string): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const existing = await prisma.roomType.findFirst({
     where: { id, tenantId },
     select: { id: true, _count: { select: { quotes: true } } },
@@ -94,10 +103,26 @@ export async function deleteRoomType(id: string): Promise<ActionResult> {
       where: { id },
       data: { isActive: false },
     });
+    await logAction({
+      actor: tenantActor(userId, email),
+      tenantId,
+      action: "TOGGLE",
+      entity: "RoomType",
+      entityId: id,
+      summary: "Dezaktywowano pokój (miał podpięte wyceny)",
+    });
     revalidatePath("/konfiguracja/pokoje");
     return actionOk();
   }
   await prisma.roomType.delete({ where: { id } });
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: "DELETE",
+    entity: "RoomType",
+    entityId: id,
+    summary: "Usunięto pokój",
+  });
   revalidatePath("/konfiguracja/pokoje");
   revalidatePath("/konfiguracja");
   return actionOk();

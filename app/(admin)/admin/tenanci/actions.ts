@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/admin-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
 import { DEFAULT_MEDICAL_MODIFIERS } from "@/lib/medical-catalog";
+import { logAction, adminActor } from "@/lib/audit";
 
 const createSchema = z
   .object({
@@ -27,7 +28,7 @@ const createSchema = z
   });
 
 export async function createTenant(data: unknown): Promise<ActionResult<{ id: string; slug: string }>> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const parsed = createSchema.safeParse(data);
   if (!parsed.success) {
     return actionError(
@@ -147,6 +148,14 @@ export async function createTenant(data: unknown): Promise<ActionResult<{ id: st
     });
   }
 
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId: tenant.id,
+    action: "CREATE",
+    entity: "Tenant",
+    entityId: tenant.id,
+    summary: `Utworzono placówkę „${d.name}” (plan ${d.plan})`,
+  });
   revalidatePath("/admin/tenanci");
   revalidatePath("/admin");
   return actionOk({ id: tenant.id, slug: tenant.slug });
@@ -156,13 +165,21 @@ export async function setTenantStatus(
   id: string,
   status: "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELLED",
 ): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const existing = await prisma.tenant.findUnique({
     where: { id },
     select: { id: true },
   });
   if (!existing) return actionError("Tenant nie istnieje");
   await prisma.tenant.update({ where: { id }, data: { status } });
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId: id,
+    action: "STATUS_CHANGE",
+    entity: "Tenant",
+    entityId: id,
+    summary: `Zmieniono status placówki na ${status}`,
+  });
   revalidatePath("/admin/tenanci");
   revalidatePath(`/admin/tenanci/${id}`);
   revalidatePath("/admin");
@@ -237,7 +254,7 @@ export async function updateSubscription(
   tenantId: string,
   data: unknown,
 ): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const parsed = subscriptionSchema.safeParse(data);
   if (!parsed.success) {
     return actionError("Sprawdź pola formularza");
@@ -282,6 +299,14 @@ export async function updateSubscription(
   } else {
     await prisma.subscription.create({ data: { tenantId, ...common } });
   }
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId,
+    action: "UPDATE",
+    entity: "Subscription",
+    entityId: tenantId,
+    summary: `Zaktualizowano subskrypcję: plan ${parsed.data.plan}, status ${parsed.data.status}`,
+  });
   revalidatePath(`/admin/tenanci/${tenantId}`);
   revalidatePath("/admin/abonamenty");
   revalidatePath("/admin");
@@ -309,7 +334,7 @@ export async function extendTrial(
   tenantId: string,
   days: number,
 ): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   if (!Number.isFinite(days) || days <= 0 || days > 365) {
     return actionError("Nieprawidłowa liczba dni");
   }
@@ -328,18 +353,34 @@ export async function extendTrial(
     where: { id: sub.id },
     data: { trialEndsAt, status: "TRIAL" },
   });
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId,
+    action: "UPDATE",
+    entity: "Subscription",
+    entityId: tenantId,
+    summary: `Przedłużono trial o ${days} dni`,
+  });
   revalidateSub(tenantId);
   return actionOk();
 }
 
 // Resetuj licznik wycen w okresie i ustaw start okresu na teraz.
 export async function resetQuota(tenantId: string): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const sub = await getSub(tenantId);
   if (!sub) return actionError("Brak subskrypcji");
   await prisma.subscription.update({
     where: { id: sub.id },
     data: { quotesThisPeriod: 0, currentPeriodStart: new Date() },
+  });
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId,
+    action: "UPDATE",
+    entity: "Subscription",
+    entityId: tenantId,
+    summary: "Zresetowano licznik wycen w okresie",
   });
   revalidateSub(tenantId);
   return actionOk();
@@ -350,7 +391,7 @@ export async function setSubscriptionStatus(
   tenantId: string,
   status: "ACTIVE" | "PAST_DUE" | "CANCELLED" | "TRIAL",
 ): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const sub = await getSub(tenantId);
   if (!sub) return actionError("Brak subskrypcji");
   await prisma.subscription.update({
@@ -360,6 +401,14 @@ export async function setSubscriptionStatus(
       cancelledAt: status === "CANCELLED" ? new Date() : null,
     },
   });
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId,
+    action: "STATUS_CHANGE",
+    entity: "Subscription",
+    entityId: tenantId,
+    summary: `Zmieniono status subskrypcji na ${status}`,
+  });
   revalidateSub(tenantId);
   return actionOk();
 }
@@ -368,15 +417,24 @@ export async function toggleTenantUser(
   userId: string,
   tenantId: string,
 ): Promise<ActionResult> {
-  await requireAdminSession();
+  const admin = await requireAdminSession();
   const user = await prisma.tenantUser.findFirst({
     where: { id: userId, tenantId },
     select: { id: true, status: true },
   });
   if (!user) return actionError("User nie istnieje");
+  const newStatus = user.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
   await prisma.tenantUser.update({
     where: { id: userId },
-    data: { status: user.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" },
+    data: { status: newStatus },
+  });
+  await logAction({
+    actor: adminActor(admin.adminId, admin.email),
+    tenantId,
+    action: "TOGGLE",
+    entity: "TenantUser",
+    entityId: userId,
+    summary: `Zmieniono status użytkownika na ${newStatus}`,
   });
   revalidatePath(`/admin/tenanci/${tenantId}`);
   return actionOk();

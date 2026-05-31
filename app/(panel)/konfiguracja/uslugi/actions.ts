@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
 import { isWithinLimit } from "@/lib/plan-limits";
+import { logAction, tenantActor } from "@/lib/audit";
 
 const schema = z.object({
   code: z
@@ -26,7 +27,7 @@ export async function upsertAddon(
   id: string | null,
   data: unknown,
 ): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     return actionError(
@@ -83,19 +84,35 @@ export async function upsertAddon(
     }
     await prisma.addonService.create({ data: { ...payload, tenantId } });
   }
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: id ? "UPDATE" : "CREATE",
+    entity: "AddonService",
+    entityId: id ?? undefined,
+    summary: `${id ? "Zaktualizowano" : "Dodano"} usługę „${parsed.data.label}”`,
+  });
   revalidatePath("/konfiguracja/uslugi");
   revalidatePath("/konfiguracja");
   return actionOk();
 }
 
 export async function deleteAddon(id: string): Promise<ActionResult> {
-  const { tenantId } = await requireTenantSession();
+  const { tenantId, userId, email } = await requireTenantSession();
   const existing = await prisma.addonService.findFirst({
     where: { id, tenantId },
     select: { id: true },
   });
   if (!existing) return actionError("Usługa nie istnieje");
   await prisma.addonService.delete({ where: { id } });
+  await logAction({
+    actor: tenantActor(userId, email),
+    tenantId,
+    action: "DELETE",
+    entity: "AddonService",
+    entityId: id,
+    summary: "Usunięto usługę",
+  });
   revalidatePath("/konfiguracja/uslugi");
   revalidatePath("/konfiguracja");
   return actionOk();
