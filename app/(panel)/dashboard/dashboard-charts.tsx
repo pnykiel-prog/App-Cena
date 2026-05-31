@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   Legend,
   Pie,
   PieChart,
@@ -13,8 +14,18 @@ import {
   YAxis,
 } from "recharts";
 
-// Paleta zgodna z --chart-1..5 z globals.css
-const PALETTE = ["#1e3a5f", "#C9A84C", "#2a4f82", "#d9bb70", "#152b47", "#94a3b8"];
+// Wyraźnie odróżnialna paleta dla wykresu kołowego (poziomy opieki).
+// Granat marki jako pierwszy, dalej kontrastowe barwy.
+const PIE_PALETTE = [
+  "#1e3a5f", // granat (marka)
+  "#C9A84C", // złoty (marka)
+  "#3b82f6", // niebieski
+  "#10b981", // zielony
+  "#ef4444", // czerwony
+  "#8b5cf6", // fioletowy
+  "#f97316", // pomarańczowy
+  "#14b8a6", // morski
+];
 
 const TOOLTIP_STYLE = {
   borderRadius: 8,
@@ -22,18 +33,25 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 } as const;
 
+function pct(value: number, total: number): string {
+  if (total <= 0) return "0%";
+  return `${Math.round((value / total) * 100)}%`;
+}
+
 // ─── Lejek: wypełnione ankiety wg etapu kontaktu ──────────────────────────────
 
 export type FunnelDatum = { name: string; value: number; fill: string };
 
 export function FunnelChart({ data }: { data: FunnelDatum[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 5, right: 16, left: 8, bottom: 0 }}
+          margin={{ top: 5, right: 48, left: 8, bottom: 0 }}
         >
           <XAxis
             type="number"
@@ -54,12 +72,38 @@ export function FunnelChart({ data }: { data: FunnelDatum[] }) {
             cursor={{ fill: "#f0f4f8" }}
             contentStyle={TOOLTIP_STYLE}
             labelStyle={{ color: "#1e3a5f", fontWeight: 600 }}
-            formatter={(v) => [`${v} ankiet`, ""]}
+            formatter={(v) => [`${v} ankiet (${pct(Number(v), total)})`, ""]}
           />
           <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={28}>
             {data.map((d, i) => (
               <Cell key={i} fill={d.fill} />
             ))}
+            <LabelList
+              dataKey="value"
+              position="right"
+              content={(props) => {
+                const { x, y, width, height, value } = props as {
+                  x: number;
+                  y: number;
+                  width: number;
+                  height: number;
+                  value: number;
+                };
+                if (value === 0) return null;
+                return (
+                  <text
+                    x={x + width + 6}
+                    y={y + height / 2}
+                    fill="#1e3a5f"
+                    fontSize={11}
+                    fontWeight={600}
+                    dominantBaseline="central"
+                  >
+                    {value} · {pct(value, total)}
+                  </text>
+                );
+              }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -72,6 +116,8 @@ export function FunnelChart({ data }: { data: FunnelDatum[] }) {
 export type CareDatum = { name: string; value: number };
 
 export function CareLevelChart({ data }: { data: CareDatum[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -85,15 +131,20 @@ export function CareLevelChart({ data }: { data: CareDatum[] }) {
             innerRadius={50}
             outerRadius={85}
             paddingAngle={2}
+            label={({ percent }) =>
+              percent && percent > 0.04 ? `${Math.round(percent * 100)}%` : ""
+            }
+            labelLine={false}
+            fontSize={11}
           >
             {data.map((_, i) => (
-              <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+              <Cell key={i} fill={PIE_PALETTE[i % PIE_PALETTE.length]} />
             ))}
           </Pie>
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             labelStyle={{ color: "#1e3a5f", fontWeight: 600 }}
-            formatter={(v, n) => [`${v} ankiet`, n]}
+            formatter={(v, n) => [`${v} ankiet (${pct(Number(v), total)})`, n]}
           />
           <Legend
             iconType="circle"
