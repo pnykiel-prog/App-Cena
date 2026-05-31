@@ -3,12 +3,7 @@
 import { formatPLN } from "@/lib/utils";
 import type { WidgetRoom, WizardAnswers } from "./types";
 import { Check } from "lucide-react";
-
-const CAPACITY_LABEL: Record<WidgetRoom["capacity"], string> = {
-  SINGLE: "1 osoba",
-  DOUBLE: "2 osoby",
-  TRIPLE: "3 osoby",
-};
+import { useT } from "./i18n";
 
 export function RoomStep({
   roomTypes,
@@ -21,6 +16,8 @@ export function RoomStep({
   onChange: (a: WizardAnswers) => void;
   currency: string;
 }) {
+  const t = useT();
+  const CAPACITY_LABEL = t.room.capacity;
   return (
     <div className="space-y-6">
       <div>
@@ -28,12 +25,9 @@ export function RoomStep({
           className="text-xl font-semibold tracking-tight"
           style={{ color: "var(--brand)" }}
         >
-          Wybierz typ pokoju
+          {t.room.title}
         </h2>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          Cena bazowa obejmuje wyżywienie i podstawową opiekę 24/7. Dodatkowa
-          opieka medyczna i usługi liczone są osobno.
-        </p>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t.room.desc}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -76,7 +70,7 @@ export function RoomStep({
                 </p>
               ) : null}
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
-                <p className="text-xs text-[var(--muted-foreground)]">Cena bazowa</p>
+                <p className="text-xs text-[var(--muted-foreground)]">{t.room.basePrice}</p>
                 <p
                   className="mt-1 text-2xl font-bold"
                   style={{ color: "var(--brand)" }}
@@ -84,7 +78,7 @@ export function RoomStep({
                   {formatPLN(r.basePrice)}
                 </p>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  / miesiąc · {currency}
+                  {t.room.perMonth(currency)}
                 </p>
               </div>
               {r.available > 0 ? (

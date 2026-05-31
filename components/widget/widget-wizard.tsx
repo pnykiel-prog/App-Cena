@@ -21,8 +21,10 @@ import { ContractStep } from "./contract-step";
 import { ResultStep } from "./result-step";
 import { ResizeReporter } from "./resize-reporter";
 import { scoreBarthel } from "@/lib/barthel";
+import { useT } from "./i18n";
 
 export function WidgetWizard({ config }: { config: WidgetConfig }) {
+  const t = useT();
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>(() => ({
     barthelAnswers: {},
@@ -88,13 +90,13 @@ export function WidgetWizard({ config }: { config: WidgetConfig }) {
       });
       const json = await res.json();
       if (!json.success) {
-        toast.error(json.error ?? "Nie udało się policzyć wyceny");
+        toast.error(json.error ?? t.errCompute);
         return;
       }
       setResult(json.data as QuoteResult);
       setStepIndex(STEPS.length - 1);
     } catch (e) {
-      toast.error("Błąd połączenia z serwerem");
+      toast.error(t.errConnection);
       console.error(e);
     } finally {
       setSubmitting(false);
@@ -107,7 +109,7 @@ export function WidgetWizard({ config }: { config: WidgetConfig }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
           <span>
-            Krok {stepIndex + 1} z {STEPS.length} — <strong>{STEPS[stepIndex].label}</strong>
+            {t.stepCounter(stepIndex + 1, STEPS.length, t.steps[stepKey])}
           </span>
           <span className="font-mono">{Math.round(progress)}%</span>
         </div>
@@ -183,7 +185,7 @@ export function WidgetWizard({ config }: { config: WidgetConfig }) {
             disabled={stepIndex === 0 || submitting}
           >
             <ChevronLeft className="h-4 w-4" />
-            Wstecz
+            {t.back}
           </Button>
           <Button
             type="button"
@@ -196,15 +198,15 @@ export function WidgetWizard({ config }: { config: WidgetConfig }) {
             className="hover:opacity-90"
           >
             {submitting ? (
-              "Liczę wycenę..."
+              t.computing
             ) : stepKey === "contract" ? (
               <>
                 <Sparkles className="h-4 w-4" />
-                Pokaż wycenę
+                {t.showQuote}
               </>
             ) : (
               <>
-                Dalej
+                {t.next}
                 <ChevronRight className="h-4 w-4" />
               </>
             )}

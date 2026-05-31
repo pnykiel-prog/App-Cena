@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getPublicTenantBySlug, getTenantCatalog, brandingCss } from "@/lib/tenant";
 import { BARTHEL_ITEMS } from "@/lib/barthel";
-import { WidgetWizard } from "@/components/widget/widget-wizard";
+import { prisma } from "@/lib/prisma";
+import { canFeature } from "@/lib/plan-limits";
+import { WidgetShell } from "@/components/widget/widget-shell";
 import type { WidgetConfig } from "@/components/widget/types";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +17,14 @@ export default async function WidgetPage({
   const tenant = await getPublicTenantBySlug(slug);
   if (!tenant) notFound();
 
-  const catalog = await getTenantCatalog(tenant.id);
+  const [catalog, subscription] = await Promise.all([
+    getTenantCatalog(tenant.id),
+    prisma.subscription.findUnique({
+      where: { tenantId: tenant.id },
+      select: { plan: true, limitOverrides: true },
+    }),
+  ]);
+  const multiLanguage = canFeature(subscription, "multiLanguage");
 
   const config: WidgetConfig = {
     tenant: {
@@ -31,6 +40,7 @@ export default async function WidgetPage({
       showRangeWidth: tenant.showRangeWidth,
       requirePhoneOnLead: tenant.requirePhoneOnLead,
       hideBranding: tenant.hideBranding,
+      multiLanguage,
     },
     barthelItems: BARTHEL_ITEMS,
     roomTypes: catalog.roomTypes.map((r) => ({
@@ -88,55 +98,7 @@ export default async function WidgetPage({
       }
     >
       <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {tenant.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={tenant.logoUrl}
-                alt={tenant.name}
-                className="h-12 w-12 rounded-lg object-cover"
-              />
-            ) : (
-              <div
-                className="h-12 w-12 rounded-lg flex items-center justify-center text-white font-bold text-xl"
-                style={{ backgroundColor: "var(--brand)" }}
-              >
-                {tenant.name[0]}
-              </div>
-            )}
-            <div>
-              <p
-                className="font-semibold tracking-tight"
-                style={{ color: "var(--brand)" }}
-              >
-                {tenant.name}
-              </p>
-              <p className="text-xs text-[var(--muted-foreground)]">
-                {tenant.city ?? "Wycena pobytu"}
-              </p>
-            </div>
-          </div>
-          <span
-            className="text-xs uppercase tracking-wider font-medium hidden sm:inline"
-            style={{ color: "var(--brand-accent)" }}
-          >
-            Wycena pobytu
-          </span>
-        </header>
-
-        <div className="rounded-2xl border border-[var(--border)] bg-white shadow-xl p-6 md:p-8">
-          <WidgetWizard config={config} />
-        </div>
-
-        {!tenant.hideBranding && (
-          <footer className="mt-6 text-center text-xs text-[var(--muted-foreground)]">
-            Powered by{" "}
-            <span style={{ color: "var(--brand-accent)" }} className="font-semibold">
-              CareQuote
-            </span>
-          </footer>
-        )}
+        <WidgetShell config={config} />
       </div>
     </div>
   );

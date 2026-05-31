@@ -3,13 +3,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import type { WidgetMedicalModifier, WizardAnswers } from "./types";
 import { formatPLN } from "@/lib/utils";
-
-const KIND_LABEL: Record<WidgetMedicalModifier["kind"], string> = {
-  COGNITIVE: "Stan poznawczy",
-  MEDICAL: "Medyczne",
-  BEHAVIORAL: "Behawioralne",
-  MOBILITY: "Mobilność",
-};
+import { useT } from "./i18n";
 
 export function MedicalStep({
   modifiers,
@@ -22,6 +16,8 @@ export function MedicalStep({
   onChange: (a: WizardAnswers) => void;
   currency: string;
 }) {
+  const t = useT();
+  const KIND_LABEL = t.medical.kind;
   // Grupuj po kind
   const groups = modifiers.reduce<Record<string, WidgetMedicalModifier[]>>((acc, m) => {
     (acc[m.kind] ??= []).push(m);
@@ -37,18 +33,14 @@ export function MedicalStep({
           className="text-xl font-semibold tracking-tight"
           style={{ color: "var(--brand)" }}
         >
-          Stan zdrowia i potrzeby specjalne
+          {t.medical.title}
         </h2>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          Zaznacz wszystkie pozycje, które dotyczą przyszłego mieszkańca. Każda z
-          nich wpływa na miesięczny koszt opieki. Nie pamiętasz wszystkiego? Możesz
-          wrócić do tego ekranu w każdej chwili.
-        </p>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t.medical.desc}</p>
       </div>
 
       <div className="rounded-lg bg-[var(--brand-light,#e8eef5)] p-3 text-sm">
-        Wybrano <strong>{selectedCount}</strong> modyfikatorów
-        {currency !== "PLN" ? ` (waluta: ${currency})` : ""}.
+        {t.medical.selected(selectedCount)}
+        {currency !== "PLN" ? ` (${currency})` : ""}.
       </div>
 
       <div className="space-y-6">

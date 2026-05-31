@@ -13,6 +13,8 @@ export type WidgetTenant = {
   showRangeWidth: number;
   requirePhoneOnLead: boolean;
   hideBranding: boolean;
+  // Czy plan tenanta pozwala na przełącznik języka widgetu (Pro+).
+  multiLanguage: boolean;
 };
 
 export type WidgetRoom = {
