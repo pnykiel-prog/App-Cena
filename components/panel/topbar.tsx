@@ -12,15 +12,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { MobileNav } from "./mobile-nav";
 
 export function PanelTopbar({
   userName,
   userEmail,
   tenantName,
+  showAudit = false,
+  showLocations = false,
 }: {
   userName: string;
   userEmail: string;
   tenantName: string;
+  showAudit?: boolean;
+  showLocations?: boolean;
 }) {
   const initials = userName
     .split(" ")
@@ -30,12 +35,19 @@ export function PanelTopbar({
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-white px-6">
-      <div>
-        <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wider">
-          Dom seniora
-        </p>
-        <h1 className="text-sm font-semibold text-[var(--primary)]">{tenantName}</h1>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-white px-4 md:px-6">
+      <div className="flex items-center gap-3">
+        <MobileNav
+          tenantName={tenantName}
+          showAudit={showAudit}
+          showLocations={showLocations}
+        />
+        <div>
+          <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wider">
+            Dom seniora
+          </p>
+          <h1 className="text-sm font-semibold text-[var(--primary)]">{tenantName}</h1>
+        </div>
       </div>
 
       <DropdownMenu>

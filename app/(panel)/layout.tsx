@@ -36,6 +36,8 @@ export default async function PanelLayout({
           userName={session.user.name ?? "Użytkownik"}
           userEmail={session.user.email ?? ""}
           tenantName={session.user.tenantName ?? ""}
+          showAudit={showAudit}
+          showLocations={showLocations}
         />
         <main className="flex-1 p-6 md:p-8">{children}</main>
       </div>
