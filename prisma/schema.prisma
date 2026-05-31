@@ -81,6 +81,11 @@ enum VisitStatus {
   NO_SHOW
 }
 
+enum VisitKind {
+  ONSITE // wizyta stacjonarna w placówce
+  PHONE  // konsultacja telefoniczna
+}
+
 enum NotificationKind {
   NEW_LEAD
   NEW_VISIT_BOOKING
@@ -415,6 +420,12 @@ model VisitBooking {
   contactName String
   contactPhone String
   contactEmail String?
+  kind         VisitKind   @default(ONSITE)
+  // Preferowany dzień tygodnia (MON..SUN lub ANY) i pora dnia (MORNING/FORENOON/
+  // AFTERNOON/EVENING/ANY) — zamiast konkretnej daty. preferredAt zostaje na
+  // wypadek, gdy manager ustali dokładny termin (wtedy trafia do feedu iCal).
+  preferredDay  String?
+  preferredTime String?
   preferredAt  DateTime?
   notes        String?
   status       VisitStatus @default(REQUESTED)

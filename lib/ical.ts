@@ -2,6 +2,10 @@
 // Kalendarz tylko-do-odczytu — subskrybowany przez Google/Outlook/Apple Calendar.
 
 import { randomBytes } from "node:crypto";
+import {
+  visitKindLabel,
+  visitPreferenceLabel,
+} from "@/lib/visit-options";
 
 export function generateFeedToken(): string {
   return "cal_" + randomBytes(24).toString("hex");
@@ -22,6 +26,12 @@ function toIcsDate(d: Date): string {
     `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
     `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
   );
+}
+
+// Data → format DATE (cały dzień): YYYYMMDD
+function toIcsDay(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
 }
 
 // Escapowanie tekstu wg RFC 5545 (przecinki, średniki, backslash, nowe linie).
@@ -51,6 +61,9 @@ export type VisitForIcs = {
   contactName: string;
   contactPhone: string;
   contactEmail: string | null;
+  kind: string;
+  preferredDay: string | null;
+  preferredTime: string | null;
   preferredAt: Date | null;
   notes: string | null;
   status: string;
@@ -75,30 +88,42 @@ export function buildIcsFeed(
   ];
 
   for (const v of visits) {
-    // Wizyty bez terminu pomijamy (kalendarz potrzebuje daty).
-    if (!v.preferredAt) continue;
-    const start = new Date(v.preferredAt);
-    const end = new Date(start.getTime() + 60 * 60 * 1000); // domyślnie 1h
-    const summary = `Wizyta: ${v.contactName} (${STATUS_LABEL[v.status] ?? v.status})`;
+    const kindLabel = visitKindLabel(v.kind);
+    const pref = visitPreferenceLabel(v.preferredDay, v.preferredTime);
+    const summary = `${kindLabel}: ${v.contactName}`;
     const descParts = [
       `Telefon: ${v.contactPhone}`,
       v.contactEmail ? `E-mail: ${v.contactEmail}` : "",
+      `Preferowany termin: ${pref}`,
       v.notes ? `Uwagi: ${v.notes}` : "",
       `Status: ${STATUS_LABEL[v.status] ?? v.status}`,
     ].filter(Boolean);
 
-    lines.push(
+    const ev: string[] = [
       "BEGIN:VEVENT",
       fold(`UID:visit-${v.id}@${appHost}`),
       `DTSTAMP:${now}`,
-      `DTSTART:${toIcsDate(start)}`,
-      `DTEND:${toIcsDate(end)}`,
+    ];
+
+    if (v.preferredAt) {
+      // Manager ustalił dokładny termin → wydarzenie o konkretnej godzinie (1h).
+      const start = new Date(v.preferredAt);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      ev.push(`DTSTART:${toIcsDate(start)}`, `DTEND:${toIcsDate(end)}`);
+    } else {
+      // Brak dokładnej daty → wydarzenie całodniowe w dniu zgłoszenia (przypomnienie
+      // do oddzwonienia/umówienia). Preferencja dnia/pory jest w opisie.
+      ev.push(`DTSTART;VALUE=DATE:${toIcsDay(new Date(v.createdAt))}`);
+    }
+
+    ev.push(
       fold(`SUMMARY:${esc(summary)}`),
       fold(`DESCRIPTION:${esc(descParts.join("\n"))}`),
       `STATUS:${v.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED"}`,
       `LAST-MODIFIED:${toIcsDate(new Date(v.updatedAt))}`,
       "END:VEVENT",
     );
+    lines.push(...ev);
   }
 
   lines.push("END:VCALENDAR");

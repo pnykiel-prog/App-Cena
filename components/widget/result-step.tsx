@@ -10,6 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatPLN, formatRange } from "@/lib/utils";
 import { barthelInterpretation } from "@/lib/barthel";
+import { VISIT_DAYS, VISIT_TIMES } from "@/lib/visit-options";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { QuoteResult, WidgetTenant } from "./types";
 import {
   CheckCircle2,
@@ -20,6 +28,8 @@ import {
   Lock,
   Sparkles,
 } from "lucide-react";
+
+type VisitKind = "ONSITE" | "PHONE";
 
 export function ResultStep({
   result,
@@ -37,6 +47,7 @@ export function ResultStep({
   const interp = barthelInterpretation(barthelScore);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
+  const [visitKind, setVisitKind] = useState<VisitKind>("ONSITE");
   const [visitSubmitted, setVisitSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sendingPdf, setSendingPdf] = useState(false);
@@ -51,9 +62,15 @@ export function ResultStep({
     name: "",
     phone: "",
     email: "",
-    preferredAt: "",
+    preferredDay: "ANY",
+    preferredTime: "ANY",
     notes: "",
   });
+
+  function openVisitForm(kind: VisitKind) {
+    setVisitKind(kind);
+    setShowVisitForm(true);
+  }
 
   const emailValid = /.+@.+\..+/.test(form.email.trim());
   const phoneValid = form.phone.trim().length >= 6;
@@ -160,7 +177,9 @@ export function ResultStep({
             name: visit.name,
             phone: visit.phone,
             email: visit.email || undefined,
-            preferredAt: visit.preferredAt || undefined,
+            kind: visitKind,
+            preferredDay: visit.preferredDay,
+            preferredTime: visit.preferredTime,
             notes: visit.notes || undefined,
           }),
         },
@@ -470,17 +489,27 @@ export function ResultStep({
             <p className="text-sm font-semibold">Dziękujemy za kontakt!</p>
             <p className="text-xs text-[var(--muted-foreground)]">
               Manager {tenant.name} odezwie się do Ciebie wkrótce. Możesz też
-              od razu umówić wizytę w placówce.
+              od razu umówić wizytę lub konsultację telefoniczną.
             </p>
-            <Button
-              size="sm"
-              style={{ backgroundColor: "var(--brand)" }}
-              className="text-white hover:opacity-90"
-              onClick={() => setShowVisitForm(true)}
-            >
-              <Calendar className="h-4 w-4" />
-              Umów wizytę
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                size="sm"
+                style={{ backgroundColor: "var(--brand)" }}
+                className="text-white hover:opacity-90"
+                onClick={() => openVisitForm("ONSITE")}
+              >
+                <Calendar className="h-4 w-4" />
+                Umów wizytę stacjonarną
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openVisitForm("PHONE")}
+              >
+                <Phone className="h-4 w-4" />
+                Umów konsultację telefoniczną
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -489,11 +518,13 @@ export function ResultStep({
         <Card>
           <CardContent className="pt-6 space-y-4">
             <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
-              Umów wizytę w placówce
+              {visitKind === "PHONE"
+                ? "Umów konsultację telefoniczną"
+                : "Umów wizytę stacjonarną"}
             </p>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Manager skontaktuje się aby potwierdzić termin. To wstępna prośba —
-              nie zobowiązuje.
+              Wybierz preferowany dzień i porę — manager skontaktuje się, aby
+              potwierdzić termin. To wstępna prośba, nie zobowiązuje.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -514,26 +545,52 @@ export function ResultStep({
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="v-email">E-mail</Label>
+              <Input
+                id="v-email"
+                type="email"
+                value={visit.email}
+                onChange={(e) => setVisit({ ...visit, email: e.target.value })}
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="v-email">E-mail</Label>
-                <Input
-                  id="v-email"
-                  type="email"
-                  value={visit.email}
-                  onChange={(e) => setVisit({ ...visit, email: e.target.value })}
-                />
+                <Label>Preferowany dzień</Label>
+                <Select
+                  value={visit.preferredDay}
+                  onValueChange={(v) => setVisit({ ...visit, preferredDay: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIT_DAYS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>
+                        {d.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="v-date">Preferowany termin</Label>
-                <Input
-                  id="v-date"
-                  type="datetime-local"
-                  value={visit.preferredAt}
-                  onChange={(e) =>
-                    setVisit({ ...visit, preferredAt: e.target.value })
-                  }
-                />
+                <Label>Preferowana pora</Label>
+                <Select
+                  value={visit.preferredTime}
+                  onValueChange={(v) => setVisit({ ...visit, preferredTime: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIT_TIMES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
@@ -555,8 +612,16 @@ export function ResultStep({
                 style={{ backgroundColor: "var(--brand)" }}
                 className="text-white hover:opacity-90 flex-1"
               >
-                <Calendar className="h-4 w-4" />
-                {submitting ? "Wysyłam..." : "Wyślij prośbę o wizytę"}
+                {visitKind === "PHONE" ? (
+                  <Phone className="h-4 w-4" />
+                ) : (
+                  <Calendar className="h-4 w-4" />
+                )}
+                {submitting
+                  ? "Wysyłam..."
+                  : visitKind === "PHONE"
+                    ? "Wyślij prośbę o konsultację"
+                    : "Wyślij prośbę o wizytę"}
               </Button>
               <Button
                 type="button"

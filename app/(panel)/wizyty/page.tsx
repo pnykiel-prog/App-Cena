@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { canFeature } from "@/lib/plan-limits";
+import { visitKindLabel, visitPreferenceLabel } from "@/lib/visit-options";
 import { CalendarCard } from "./calendar-card";
 
 export const metadata = { title: "Wizyty" };
@@ -79,11 +80,20 @@ export default async function WizytyPage() {
           ) : (
             <ul className="divide-y divide-[var(--border)]">
               {visits.map((v) => (
-                <li key={v.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium">{v.contactName}</p>
+                <li key={v.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium">{v.contactName}</p>
+                      <Badge variant={v.kind === "PHONE" ? "muted" : "outline"}>
+                        {visitKindLabel(v.kind)}
+                      </Badge>
+                    </div>
                     <p className="text-xs text-[var(--muted-foreground)]">
-                      {v.contactPhone} · {v.contactEmail ?? "brak e-maila"} ·{" "}
+                      {v.contactPhone} · {v.contactEmail ?? "brak e-maila"}
+                    </p>
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      Preferencja: {visitPreferenceLabel(v.preferredDay, v.preferredTime)}
+                      {" · "}
                       {new Date(v.createdAt).toLocaleString("pl-PL")}
                     </p>
                   </div>

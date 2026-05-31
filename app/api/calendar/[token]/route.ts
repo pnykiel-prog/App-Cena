@@ -26,7 +26,7 @@ export async function GET(
       select: { name: true },
     }),
     prisma.visitBooking.findMany({
-      where: { tenantId: integration.tenantId, preferredAt: { not: null } },
+      where: { tenantId: integration.tenantId },
       orderBy: { preferredAt: "asc" },
       take: 500,
       select: {
@@ -34,6 +34,9 @@ export async function GET(
         contactName: true,
         contactPhone: true,
         contactEmail: true,
+        kind: true,
+        preferredDay: true,
+        preferredTime: true,
         preferredAt: true,
         notes: true,
         status: true,

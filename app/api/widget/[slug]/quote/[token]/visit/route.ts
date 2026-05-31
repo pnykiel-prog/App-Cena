@@ -3,6 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendVisitBookingEmails } from "@/lib/email";
 import { rateLimit, clientIdentifier } from "@/lib/rate-limit";
+import {
+  VISIT_DAY_VALUES,
+  VISIT_TIME_VALUES,
+  visitKindLabel,
+  visitPreferenceLabel,
+} from "@/lib/visit-options";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +20,9 @@ const schema = z.object({
   name: z.string().min(2).max(100),
   phone: z.string().min(6).max(40),
   email: z.string().email().optional().or(z.literal("")),
-  preferredAt: z.string().nullish(),
+  kind: z.enum(["ONSITE", "PHONE"]).default("ONSITE"),
+  preferredDay: z.enum(VISIT_DAY_VALUES as unknown as [string, ...string[]]).default("ANY"),
+  preferredTime: z.enum(VISIT_TIME_VALUES as unknown as [string, ...string[]]).default("ANY"),
   notes: z.string().max(1000).optional(),
 });
 
@@ -106,11 +114,6 @@ export async function POST(
     );
   }
 
-  const preferredAt =
-    parsed.data.preferredAt && parsed.data.preferredAt.length > 0
-      ? new Date(parsed.data.preferredAt)
-      : null;
-
   const visit = await prisma.visitBooking.create({
     data: {
       tenantId: tenant.id,
@@ -118,12 +121,20 @@ export async function POST(
       contactName: parsed.data.name,
       contactPhone: parsed.data.phone,
       contactEmail: parsed.data.email || null,
-      preferredAt,
+      kind: parsed.data.kind,
+      preferredDay: parsed.data.preferredDay,
+      preferredTime: parsed.data.preferredTime,
       notes: parsed.data.notes ?? null,
       status: "REQUESTED",
     },
     select: { id: true },
   });
+
+  // Czytelny opis preferencji do maila (np. „Wizyta stacjonarna · Poniedziałek, rano").
+  const prefText = `${visitKindLabel(parsed.data.kind)} · ${visitPreferenceLabel(
+    parsed.data.preferredDay,
+    parsed.data.preferredTime,
+  )}`;
 
   // Zapisz status leada jako VISIT_SCHEDULED + uzupełnij contact jeśli brakowało
   await prisma.quote.update({
@@ -153,8 +164,8 @@ export async function POST(
         phone: parsed.data.phone,
         email: parsed.data.email || null,
       },
-      preferredAt,
-      notes: parsed.data.notes ?? null,
+      preferredAt: null,
+      notes: [prefText, parsed.data.notes].filter(Boolean).join(" — "),
       panelUrl: `${origin}/wizyty`,
     }).catch((e) => console.error("[visit-email]", e));
   }
