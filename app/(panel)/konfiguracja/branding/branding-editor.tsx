@@ -30,14 +30,17 @@ type Initial = {
   showRangeWidth: number;
   requirePhoneOnLead: boolean;
   hideBranding: boolean;
+  priceDisplay: "RANGE" | "EXACT";
 };
 
 export function BrandingEditor({
   initial,
   canHideBranding,
+  canExactPrice,
 }: {
   initial: Initial;
   canHideBranding: boolean;
+  canExactPrice: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -57,6 +60,7 @@ export function BrandingEditor({
     rangePct: String((initial.showRangeWidth * 100).toFixed(0)),
     requirePhoneOnLead: initial.requirePhoneOnLead,
     hideBranding: initial.hideBranding,
+    priceDisplay: initial.priceDisplay,
   });
 
   function submit() {
@@ -77,6 +81,7 @@ export function BrandingEditor({
         showRangeWidth: Number(form.rangePct) / 100,
         requirePhoneOnLead: form.requirePhoneOnLead,
         hideBranding: form.hideBranding,
+        priceDisplay: form.priceDisplay,
       });
       if (!res.success) {
         toast.error(res.error);
@@ -321,6 +326,61 @@ export function BrandingEditor({
               disabled={!canHideBranding}
               onCheckedChange={(v) => setForm({ ...form, hideBranding: v })}
             />
+          </div>
+        </section>
+
+        <Separator />
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
+            Prezentacja ceny w widgecie
+          </h3>
+          <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, priceDisplay: "RANGE" })}
+                className={
+                  "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors " +
+                  (form.priceDisplay === "RANGE"
+                    ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                    : "border-[var(--border)] hover:bg-[var(--secondary)]")
+                }
+              >
+                Widełki „od–do”
+              </button>
+              <button
+                type="button"
+                disabled={!canExactPrice}
+                onClick={() =>
+                  canExactPrice && setForm({ ...form, priceDisplay: "EXACT" })
+                }
+                className={
+                  "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors inline-flex items-center justify-center gap-1 " +
+                  (!canExactPrice
+                    ? "border-[var(--border)] text-[var(--muted-foreground)] cursor-not-allowed opacity-70"
+                    : form.priceDisplay === "EXACT"
+                      ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                      : "border-[var(--border)] hover:bg-[var(--secondary)]")
+                }
+              >
+                {!canExactPrice && <Lock className="h-3 w-3" />}
+                Dokładna cena
+              </button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {canExactPrice ? (
+                "Wybierz, czy klient zobaczy zakres cenowy, czy jedną dokładną kwotę miesięczną."
+              ) : (
+                <>
+                  „Dokładna cena” jest dostępna w planie Pro i wyższych.{" "}
+                  <Link href="/plan" className="text-[var(--accent)] hover:underline">
+                    Zobacz plany
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
           </div>
         </section>
 

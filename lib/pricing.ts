@@ -142,10 +142,13 @@ export function computePricing(
   const discountAmount = grossMid * discountPct;
   const estimateMid = Math.max(0, grossMid - discountAmount);
 
-  // Widełki — domyślnie ±showRangeWidth/2 (jeśli 0.1 → ±5%)
+  // Widełki: ±showRangeWidth/2 od estymaty, ale rozpiętość ograniczona do
+  // maksymalnie 300 zł (±150 zł), żeby zakres był węższy i bardziej wiarygodny.
+  const MAX_HALF_SPREAD = 150;
   const half = (catalog.tenant.showRangeWidth ?? 0.1) / 2;
-  const estimateMin = Math.round(estimateMid * (1 - half));
-  const estimateMax = Math.round(estimateMid * (1 + half));
+  const halfAmount = Math.min(estimateMid * half, MAX_HALF_SPREAD);
+  const estimateMin = Math.round(estimateMid - halfAmount);
+  const estimateMax = Math.round(estimateMid + halfAmount);
 
   return {
     basePrice,

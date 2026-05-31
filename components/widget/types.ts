@@ -15,6 +15,8 @@ export type WidgetTenant = {
   hideBranding: boolean;
   // Czy plan tenanta pozwala na przełącznik języka widgetu (Pro+).
   multiLanguage: boolean;
+  // Prezentacja ceny: "RANGE" (widełki) lub "EXACT" (dokładna kwota).
+  priceDisplay: "RANGE" | "EXACT";
 };
 
 export type WidgetRoom = {

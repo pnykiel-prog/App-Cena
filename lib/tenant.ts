@@ -19,6 +19,7 @@ export const getPublicTenantBySlug = cache(async (slug: string) => {
       showRangeWidth: true,
       requirePhoneOnLead: true,
       hideBranding: true,
+      priceDisplay: true,
       status: true,
     },
   });
@@ -57,6 +58,7 @@ export const resolveWidgetSlug = cache(async (slug: string) => {
       showRangeWidth: true,
       requirePhoneOnLead: true,
       hideBranding: true,
+      priceDisplay: true,
       status: true,
     },
   });

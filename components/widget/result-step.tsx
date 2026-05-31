@@ -45,6 +45,11 @@ export function ResultStep({
   roomLabel: string;
 }) {
   const interp = barthelInterpretation(barthelScore);
+  // Prezentacja ceny wg decyzji managera: dokładna kwota (środek) lub widełki.
+  const priceText =
+    tenant.priceDisplay === "EXACT"
+      ? formatPLN(result.estimateMid)
+      : formatRange(result.estimateMin, result.estimateMax);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitKind, setVisitKind] = useState<VisitKind>("ONSITE");
@@ -391,7 +396,7 @@ export function ResultStep({
             Szacunkowy koszt miesięczny
           </p>
           <p className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">
-            {formatRange(result.estimateMin, result.estimateMax)}
+            {priceText}
           </p>
           <p className="mt-2 text-sm opacity-80">
             {result.currency} / miesiąc · pobyt {contractMonths} mies.

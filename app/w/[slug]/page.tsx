@@ -44,6 +44,7 @@ export default async function WidgetPage({
       requirePhoneOnLead: tenant.requirePhoneOnLead,
       hideBranding: tenant.hideBranding,
       multiLanguage,
+      priceDisplay: tenant.priceDisplay,
     },
     barthelItems: BARTHEL_ITEMS,
     roomTypes: catalog.roomTypes.map((r) => ({

@@ -30,6 +30,7 @@ export default async function BrandingPage() {
         showRangeWidth: true,
         requirePhoneOnLead: true,
         hideBranding: true,
+        priceDisplay: true,
       },
     }),
     prisma.subscription.findUnique({
@@ -43,6 +44,7 @@ export default async function BrandingPage() {
   }
 
   const canHideBranding = canFeature(subscription, "hideBranding");
+  const canExactPrice = canFeature(subscription, "exactPrice");
 
   return (
     <Card>
@@ -54,7 +56,11 @@ export default async function BrandingPage() {
         </p>
       </CardHeader>
       <CardContent>
-        <BrandingEditor initial={tenant} canHideBranding={canHideBranding} />
+        <BrandingEditor
+          initial={tenant}
+          canHideBranding={canHideBranding}
+          canExactPrice={canExactPrice}
+        />
       </CardContent>
     </Card>
   );

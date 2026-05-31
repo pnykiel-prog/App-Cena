@@ -28,6 +28,7 @@ export type FeatureFlags = {
   auditLog: boolean; // audit log w panelu placówki
   multiLocation: boolean; // wiele lokalizacji
   zapierMake: boolean; // Zapier/Make
+  exactPrice: boolean; // wybór: widełki vs dokładna cena w widgecie
 };
 
 // Limity ilościowe. `null` = bez limitu.
@@ -60,6 +61,7 @@ const NONE: FeatureFlags = {
   auditLog: false,
   multiLocation: false,
   zapierMake: false,
+  exactPrice: false,
 };
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
@@ -83,6 +85,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       multiLanguage: true,
       auditLog: true,
       zapierMake: true,
+      exactPrice: true,
     },
   },
 
@@ -116,6 +119,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       multiLanguage: true,
       auditLog: true,
       zapierMake: true,
+      exactPrice: true,
     },
   },
 
@@ -145,6 +149,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       auditLog: true,
       multiLocation: true,
       zapierMake: true,
+      exactPrice: true,
     },
   },
 };

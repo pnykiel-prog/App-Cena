@@ -44,6 +44,7 @@ export async function GET(
           showRangeWidth: tenant.showRangeWidth,
           requirePhoneOnLead: tenant.requirePhoneOnLead,
           hideBranding: tenant.hideBranding,
+          priceDisplay: tenant.priceDisplay,
         },
         barthelItems: BARTHEL_ITEMS,
         roomTypes: catalog.roomTypes.map((r) => ({

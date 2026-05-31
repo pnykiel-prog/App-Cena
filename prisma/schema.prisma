@@ -15,6 +15,11 @@ enum TenantStatus {
   CANCELLED
 }
 
+enum PriceDisplay {
+  RANGE
+  EXACT
+}
+
 enum TenantUserRole {
   OWNER
   MANAGER
@@ -157,9 +162,14 @@ model Tenant {
   brandCss    Json?
 
   // Polityka wyceny
-  showRangeWidth Float    @default(0.1)  // szerokość widełek (10% od estymaty)
+  showRangeWidth Float    @default(0.1)  // szerokość widełek (% od estymaty, cap 300 zł)
   currency       String   @default("PLN")
   locale         String   @default("pl-PL")
+
+  // Sposób prezentacji ceny w widgecie: RANGE = widełki „od–do", EXACT = jedna
+  // dokładna kwota (środek). Wybór dostępny w planach Pro+ (egzekwowane w
+  // server-action brandingu); Starter pozostaje przy RANGE.
+  priceDisplay PriceDisplay @default(RANGE)
 
   // Wymagania formularza kontaktu w widgecie:
   // email jest zawsze wymagany (gate dostępu do wyceny);

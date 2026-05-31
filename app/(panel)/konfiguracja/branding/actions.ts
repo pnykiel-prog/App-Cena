@@ -30,6 +30,7 @@ const schema = z.object({
   showRangeWidth: z.number().min(0).max(0.5), // 0..50%
   requirePhoneOnLead: z.boolean(),
   hideBranding: z.boolean(),
+  priceDisplay: z.enum(["RANGE", "EXACT"]).default("RANGE"),
 });
 
 export async function updateBranding(data: unknown): Promise<ActionResult> {
@@ -59,6 +60,20 @@ export async function updateBranding(data: unknown): Promise<ActionResult> {
     }
   }
 
+  // Dokładna cena (zamiast widełek) to funkcja Pro+. Bez uprawnień wymuszamy RANGE.
+  let priceDisplay = parsed.data.priceDisplay;
+  if (priceDisplay === "EXACT") {
+    const sub = await prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: true, limitOverrides: true },
+    });
+    if (!canFeature(sub, "exactPrice")) {
+      return actionError(
+        "Wybór „dokładna cena” jest dostępny w planie Pro i wyższych. Przejdź na wyższy plan.",
+      );
+    }
+  }
+
   await prisma.tenant.update({
     where: { id: tenantId },
     data: {
@@ -77,6 +92,7 @@ export async function updateBranding(data: unknown): Promise<ActionResult> {
       showRangeWidth: parsed.data.showRangeWidth,
       requirePhoneOnLead: parsed.data.requirePhoneOnLead,
       hideBranding,
+      priceDisplay,
     },
   });
   await logAction({
