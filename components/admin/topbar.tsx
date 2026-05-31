@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Shield } from "lucide-react";
+import { AdminMobileNav } from "./mobile-nav";
 
 export function AdminTopbar({
   userName,
@@ -28,9 +29,10 @@ export function AdminTopbar({
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-white px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border)] bg-white px-4 md:px-6">
       <div className="flex items-center gap-2">
-        <Shield className="h-4 w-4 text-[var(--accent)]" />
+        <AdminMobileNav />
+        <Shield className="h-4 w-4 text-[var(--accent)] hidden sm:inline" />
         <span className="text-xs uppercase tracking-wider text-[var(--muted-foreground)] font-semibold">
           Panel super-admina platformy
         </span>
