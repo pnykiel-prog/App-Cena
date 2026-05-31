@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandingEditor } from "./branding-editor";
+import { canFeature } from "@/lib/plan-limits";
 
 export const metadata = { title: "Konfiguracja — Branding" };
 
@@ -9,30 +10,39 @@ export default async function BrandingPage() {
   const session = await auth();
   const tenantId = session!.user.tenantId!;
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: {
-      slug: true,
-      name: true,
-      legalName: true,
-      nip: true,
-      city: true,
-      address: true,
-      postalCode: true,
-      phone: true,
-      email: true,
-      website: true,
-      logoUrl: true,
-      brandColor: true,
-      accentColor: true,
-      showRangeWidth: true,
-      requirePhoneOnLead: true,
-    },
-  });
+  const [tenant, subscription] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        slug: true,
+        name: true,
+        legalName: true,
+        nip: true,
+        city: true,
+        address: true,
+        postalCode: true,
+        phone: true,
+        email: true,
+        website: true,
+        logoUrl: true,
+        brandColor: true,
+        accentColor: true,
+        showRangeWidth: true,
+        requirePhoneOnLead: true,
+        hideBranding: true,
+      },
+    }),
+    prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: true, limitOverrides: true },
+    }),
+  ]);
 
   if (!tenant) {
     return <div>Brak danych tenanta</div>;
   }
+
+  const canHideBranding = canFeature(subscription, "hideBranding");
 
   return (
     <Card>
@@ -44,7 +54,7 @@ export default async function BrandingPage() {
         </p>
       </CardHeader>
       <CardContent>
-        <BrandingEditor initial={tenant} />
+        <BrandingEditor initial={tenant} canHideBranding={canHideBranding} />
       </CardContent>
     </Card>
   );

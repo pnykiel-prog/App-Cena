@@ -42,6 +42,7 @@ export async function GET(
           locale: tenant.locale,
           showRangeWidth: tenant.showRangeWidth,
           requirePhoneOnLead: tenant.requirePhoneOnLead,
+          hideBranding: tenant.hideBranding,
         },
         barthelItems: BARTHEL_ITEMS,
         roomTypes: catalog.roomTypes.map((r) => ({

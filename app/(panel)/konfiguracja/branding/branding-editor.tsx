@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Lock } from "lucide-react";
+import Link from "next/link";
 import { updateBranding } from "./actions";
 
 type Initial = {
@@ -27,9 +29,16 @@ type Initial = {
   accentColor: string;
   showRangeWidth: number;
   requirePhoneOnLead: boolean;
+  hideBranding: boolean;
 };
 
-export function BrandingEditor({ initial }: { initial: Initial }) {
+export function BrandingEditor({
+  initial,
+  canHideBranding,
+}: {
+  initial: Initial;
+  canHideBranding: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
@@ -47,6 +56,7 @@ export function BrandingEditor({ initial }: { initial: Initial }) {
     accentColor: initial.accentColor,
     rangePct: String((initial.showRangeWidth * 100).toFixed(0)),
     requirePhoneOnLead: initial.requirePhoneOnLead,
+    hideBranding: initial.hideBranding,
   });
 
   function submit() {
@@ -66,6 +76,7 @@ export function BrandingEditor({ initial }: { initial: Initial }) {
         accentColor: form.accentColor,
         showRangeWidth: Number(form.rangePct) / 100,
         requirePhoneOnLead: form.requirePhoneOnLead,
+        hideBranding: form.hideBranding,
       });
       if (!res.success) {
         toast.error(res.error);
@@ -272,6 +283,43 @@ export function BrandingEditor({ initial }: { initial: Initial }) {
               onCheckedChange={(v) =>
                 setForm({ ...form, requirePhoneOnLead: v })
               }
+            />
+          </div>
+        </section>
+
+        <Separator />
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
+            Marka widgetu
+          </h3>
+          <div className="flex items-center justify-between rounded-md border border-[var(--border)] p-3">
+            <div className="pr-3">
+              <Label htmlFor="b-hide-branding" className="cursor-pointer flex items-center gap-1">
+                Ukryj „Powered by CareQuote”
+                {!canHideBranding && (
+                  <Lock className="h-3 w-3 text-[var(--muted-foreground)]" />
+                )}
+              </Label>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                {canHideBranding ? (
+                  "Usuwa stopkę z marką CareQuote z widgetu i podglądu wyceny."
+                ) : (
+                  <>
+                    Dostępne w planie Pro i wyższych.{" "}
+                    <Link href="/plan" className="text-[var(--accent)] hover:underline">
+                      Zobacz plany
+                    </Link>
+                    .
+                  </>
+                )}
+              </p>
+            </div>
+            <Switch
+              id="b-hide-branding"
+              checked={form.hideBranding}
+              disabled={!canHideBranding}
+              onCheckedChange={(v) => setForm({ ...form, hideBranding: v })}
             />
           </div>
         </section>

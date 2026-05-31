@@ -161,6 +161,10 @@ model Tenant {
   // telefon — manager decyduje (false = dobrowolny, true = wymagany).
   requirePhoneOnLead Boolean @default(false)
 
+  // Ukrycie stopki „Powered by CareQuote" w widgecie/podglądzie wyceny.
+  // Funkcja planu Pro+ (egzekwowana w server-action brandingu).
+  hideBranding Boolean @default(false)
+
   status      TenantStatus @default(TRIAL)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/tenant-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
+import { canFeature } from "@/lib/plan-limits";
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Format #RRGGBB");
 
@@ -27,6 +28,7 @@ const schema = z.object({
   accentColor: hexColor,
   showRangeWidth: z.number().min(0).max(0.5), // 0..50%
   requirePhoneOnLead: z.boolean(),
+  hideBranding: z.boolean(),
 });
 
 export async function updateBranding(data: unknown): Promise<ActionResult> {
@@ -39,6 +41,21 @@ export async function updateBranding(data: unknown): Promise<ActionResult> {
         parsed.error.issues.map((i) => [i.path.join("."), i.message]),
       ),
     );
+  }
+
+  // Ukrycie „Powered by" to funkcja Pro+. Jeśli plan nie pozwala, nie zezwalamy
+  // na włączenie (ale pozwalamy wyłączyć — np. po downgrade).
+  let hideBranding = parsed.data.hideBranding;
+  if (hideBranding) {
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: true, limitOverrides: true },
+    });
+    if (!canFeature(subscription, "hideBranding")) {
+      return actionError(
+        "Ukrycie „Powered by” jest dostępne w planie Pro i wyższych. Przejdź na wyższy plan.",
+      );
+    }
   }
 
   await prisma.tenant.update({
@@ -58,6 +75,7 @@ export async function updateBranding(data: unknown): Promise<ActionResult> {
       accentColor: parsed.data.accentColor,
       showRangeWidth: parsed.data.showRangeWidth,
       requirePhoneOnLead: parsed.data.requirePhoneOnLead,
+      hideBranding,
     },
   });
   revalidatePath("/konfiguracja/branding");

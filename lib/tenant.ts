@@ -18,6 +18,7 @@ export const getPublicTenantBySlug = cache(async (slug: string) => {
       locale: true,
       showRangeWidth: true,
       requirePhoneOnLead: true,
+      hideBranding: true,
       status: true,
     },
   });

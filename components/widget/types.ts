@@ -12,6 +12,7 @@ export type WidgetTenant = {
   locale: string;
   showRangeWidth: number;
   requirePhoneOnLead: boolean;
+  hideBranding: boolean;
 };
 
 export type WidgetRoom = {

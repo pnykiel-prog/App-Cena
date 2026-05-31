@@ -30,6 +30,7 @@ export default async function WidgetPage({
       locale: tenant.locale,
       showRangeWidth: tenant.showRangeWidth,
       requirePhoneOnLead: tenant.requirePhoneOnLead,
+      hideBranding: tenant.hideBranding,
     },
     barthelItems: BARTHEL_ITEMS,
     roomTypes: catalog.roomTypes.map((r) => ({
@@ -128,12 +129,14 @@ export default async function WidgetPage({
           <WidgetWizard config={config} />
         </div>
 
-        <footer className="mt-6 text-center text-xs text-[var(--muted-foreground)]">
-          Powered by{" "}
-          <span style={{ color: "var(--brand-accent)" }} className="font-semibold">
-            CareQuote
-          </span>
-        </footer>
+        {!tenant.hideBranding && (
+          <footer className="mt-6 text-center text-xs text-[var(--muted-foreground)]">
+            Powered by{" "}
+            <span style={{ color: "var(--brand-accent)" }} className="font-semibold">
+              CareQuote
+            </span>
+          </footer>
+        )}
       </div>
     </div>
   );

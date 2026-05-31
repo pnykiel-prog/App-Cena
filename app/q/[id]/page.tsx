@@ -27,6 +27,7 @@ export default async function SharedQuotePage({
           accentColor: true,
           phone: true,
           email: true,
+          hideBranding: true,
         },
       },
       roomType: true,
@@ -151,11 +152,15 @@ export default async function SharedQuotePage({
 
         <p className="text-center text-xs text-[var(--muted-foreground)]">
           Wycena ma charakter wstępny i niewiążący. Modyfikatory: {Object.values(modifiers).filter(Boolean).length}, usługi: {addons.length}.
-          <br />
-          Powered by{" "}
-          <span style={{ color: "var(--brand-accent)" }} className="font-semibold">
-            CareQuote
-          </span>
+          {!quote.tenant.hideBranding && (
+            <>
+              <br />
+              Powered by{" "}
+              <span style={{ color: "var(--brand-accent)" }} className="font-semibold">
+                CareQuote
+              </span>
+            </>
+          )}
         </p>
       </div>
     </div>
