@@ -119,6 +119,13 @@ export default async function TenantDetailPage({
               trialEndsAt: tenant.subscription?.trialEndsAt
                 ? tenant.subscription.trialEndsAt.toISOString().slice(0, 10)
                 : "",
+              currentPeriodEnd: tenant.subscription?.currentPeriodEnd
+                ? tenant.subscription.currentPeriodEnd.toISOString().slice(0, 10)
+                : "",
+              quotesThisPeriod: tenant.subscription?.quotesThisPeriod ?? 0,
+              limitOverrides: tenant.subscription?.limitOverrides
+                ? JSON.stringify(tenant.subscription.limitOverrides, null, 2)
+                : "",
             }}
           />
         </CardContent>

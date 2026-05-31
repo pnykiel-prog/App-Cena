@@ -184,9 +184,14 @@ model Subscription {
   plan        PlanTier            @default(TRIAL)
   status      SubscriptionStatus  @default(TRIAL)
   trialEndsAt DateTime?
+  gracePeriodEndsAt  DateTime?
   currentPeriodStart DateTime    @default(now())
   currentPeriodEnd   DateTime?
   monthlyPrice Float             @default(0)
+  // Liczba wycen w bieżącym okresie + per-tenant nadpisania limitów planu (JSON).
+  // Limity bazowe pochodzą z lib/plan-limits.ts; tu trzymamy tylko wyjątki.
+  quotesThisPeriod   Int        @default(0)
+  limitOverrides     Json?
   cancelledAt  DateTime?
   notes        String?
   createdAt   DateTime            @default(now())

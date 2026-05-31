@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, CreditCard } from "lucide-react";
+import { LayoutDashboard, Building2, CreditCard, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/admin", label: "Przegląd", icon: LayoutDashboard, end: true },
   { href: "/admin/tenanci", label: "Tenanci", icon: Building2 },
   { href: "/admin/abonamenty", label: "Abonamenty", icon: CreditCard },
+  { href: "/admin/plany", label: "Plany", icon: Package },
 ];
 
 export function AdminSidebar() {

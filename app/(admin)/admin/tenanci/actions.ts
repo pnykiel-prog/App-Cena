@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/admin-actions";
 import { actionError, actionOk, type ActionResult } from "@/lib/action-result";
@@ -203,11 +204,33 @@ export async function updateTenantBasic(
   return actionOk();
 }
 
+function parseDate(s: string | null | undefined): Date | null {
+  return s && s.length > 0 ? new Date(s) : null;
+}
+
+// Walidacja nadpisań limitów (JSON). Akceptujemy podzbiór znanych kluczy; wartości
+// liczbowe lub null (= bez limitu), oraz flagi funkcyjne jako boolean.
+const overrideSchema = z
+  .object({
+    monthlyQuoteLimit: z.number().int().min(0).nullable().optional(),
+    maxRoomTypes: z.number().int().min(0).nullable().optional(),
+    maxAddonServices: z.number().int().min(0).nullable().optional(),
+    panelUsers: z.number().int().min(0).nullable().optional(),
+    embedDomains: z.number().int().min(0).nullable().optional(),
+    leadRetentionDays: z.number().int().min(0).nullable().optional(),
+    auditLogMonths: z.number().int().min(0).nullable().optional(),
+    features: z.record(z.string(), z.boolean()).optional(),
+  })
+  .strict();
+
 const subscriptionSchema = z.object({
   plan: z.enum(["TRIAL", "STARTER", "PRO", "ENTERPRISE"]),
   status: z.enum(["TRIAL", "ACTIVE", "PAST_DUE", "CANCELLED"]),
   monthlyPrice: z.number().min(0).max(100_000),
   trialEndsAt: z.string().nullish(),
+  currentPeriodEnd: z.string().nullish(),
+  // limitOverrides przychodzi jako string JSON z formularza (lub pusty = brak)
+  limitOverrides: z.string().nullish(),
 });
 
 export async function updateSubscription(
@@ -225,35 +248,119 @@ export async function updateSubscription(
   });
   if (!tenant) return actionError("Tenant nie istnieje");
   const sub = tenant.subscription;
-  const trialEndsAt =
-    parsed.data.trialEndsAt && parsed.data.trialEndsAt.length > 0
-      ? new Date(parsed.data.trialEndsAt)
-      : null;
+
+  // Parsuj i waliduj nadpisania limitów (jeśli podane)
+  let limitOverrides: object | null = null;
+  const raw = parsed.data.limitOverrides?.trim();
+  if (raw && raw.length > 0) {
+    let json: unknown;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      return actionError("Nadpisania limitów: nieprawidłowy JSON");
+    }
+    const ov = overrideSchema.safeParse(json);
+    if (!ov.success) {
+      return actionError(
+        "Nadpisania limitów: niedozwolone pola lub wartości (dozwolone klucze: monthlyQuoteLimit, maxRoomTypes, maxAddonServices, panelUsers, embedDomains, leadRetentionDays, auditLogMonths, features{})",
+      );
+    }
+    limitOverrides = ov.data;
+  }
+
+  const common = {
+    plan: parsed.data.plan,
+    status: parsed.data.status,
+    monthlyPrice: parsed.data.monthlyPrice,
+    trialEndsAt: parseDate(parsed.data.trialEndsAt),
+    currentPeriodEnd: parseDate(parsed.data.currentPeriodEnd),
+    limitOverrides: limitOverrides ?? Prisma.JsonNull,
+  };
 
   if (sub) {
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: {
-        plan: parsed.data.plan,
-        status: parsed.data.status,
-        monthlyPrice: parsed.data.monthlyPrice,
-        trialEndsAt,
-      },
-    });
+    await prisma.subscription.update({ where: { id: sub.id }, data: common });
   } else {
-    await prisma.subscription.create({
-      data: {
-        tenantId,
-        plan: parsed.data.plan,
-        status: parsed.data.status,
-        monthlyPrice: parsed.data.monthlyPrice,
-        trialEndsAt,
-      },
-    });
+    await prisma.subscription.create({ data: { tenantId, ...common } });
   }
   revalidatePath(`/admin/tenanci/${tenantId}`);
   revalidatePath("/admin/abonamenty");
   revalidatePath("/admin");
+  return actionOk();
+}
+
+// ─── Akcje szybkie subskrypcji ────────────────────────────────────────────────
+
+async function getSub(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, subscription: { select: { id: true } } },
+  });
+  return tenant?.subscription ?? null;
+}
+
+function revalidateSub(tenantId: string) {
+  revalidatePath(`/admin/tenanci/${tenantId}`);
+  revalidatePath("/admin/abonamenty");
+  revalidatePath("/admin");
+}
+
+// Przedłuż trial o N dni (od dziś lub od obecnego końca, jeśli w przyszłości).
+export async function extendTrial(
+  tenantId: string,
+  days: number,
+): Promise<ActionResult> {
+  await requireAdminSession();
+  if (!Number.isFinite(days) || days <= 0 || days > 365) {
+    return actionError("Nieprawidłowa liczba dni");
+  }
+  const sub = await getSub(tenantId);
+  if (!sub) return actionError("Brak subskrypcji");
+  const current = await prisma.subscription.findUnique({
+    where: { id: sub.id },
+    select: { trialEndsAt: true },
+  });
+  const base =
+    current?.trialEndsAt && current.trialEndsAt > new Date()
+      ? current.trialEndsAt
+      : new Date();
+  const trialEndsAt = new Date(base.getTime() + days * 86400_000);
+  await prisma.subscription.update({
+    where: { id: sub.id },
+    data: { trialEndsAt, status: "TRIAL" },
+  });
+  revalidateSub(tenantId);
+  return actionOk();
+}
+
+// Resetuj licznik wycen w okresie i ustaw start okresu na teraz.
+export async function resetQuota(tenantId: string): Promise<ActionResult> {
+  await requireAdminSession();
+  const sub = await getSub(tenantId);
+  if (!sub) return actionError("Brak subskrypcji");
+  await prisma.subscription.update({
+    where: { id: sub.id },
+    data: { quotesThisPeriod: 0, currentPeriodStart: new Date() },
+  });
+  revalidateSub(tenantId);
+  return actionOk();
+}
+
+// Zmiana statusu subskrypcji (zawieś = PAST_DUE, anuluj, reaktywuj = ACTIVE).
+export async function setSubscriptionStatus(
+  tenantId: string,
+  status: "ACTIVE" | "PAST_DUE" | "CANCELLED" | "TRIAL",
+): Promise<ActionResult> {
+  await requireAdminSession();
+  const sub = await getSub(tenantId);
+  if (!sub) return actionError("Brak subskrypcji");
+  await prisma.subscription.update({
+    where: { id: sub.id },
+    data: {
+      status,
+      cancelledAt: status === "CANCELLED" ? new Date() : null,
+    },
+  });
+  revalidateSub(tenantId);
   return actionOk();
 }
 
